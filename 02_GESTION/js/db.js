@@ -18,7 +18,7 @@ var APP5T_DB = (function () {
 
     // ───────────────────── CONSTANTES ─────────────────────
 
-    var DB_VERSION = 'v1.0.2';
+    var DB_VERSION = 'v1.1.4';
     var KEY_PREFIX = 'app5t_';
     var TABLES = [
         'vendedores',
@@ -29,6 +29,8 @@ var APP5T_DB = (function () {
         'directorio',
         'negociaciones',
         'cuenta_corriente',
+        'tramites',
+        'documentos',
         'auditoria'
     ];
 
@@ -59,7 +61,7 @@ var APP5T_DB = (function () {
         },
         propiedades: {
             id_etapa: 'number', id_proyecto: 'number', nombre: 'string', rol: 'string',
-            superficie: 'number', coordenadas: 'object', valor_final: 'number', fecha_ingreso: 'string',
+            superficie: 'number', coordenadas: 'object', valor_final: 'number', abono: 'number', fecha_ingreso: 'string',
             deslindes: 'string', infraestructura: 'string', fecha_reserva: 'string',
             fecha_fin_promesa: 'string', fecha_venta: 'string', url: 'string', estado: 'string'
         },
@@ -72,12 +74,32 @@ var APP5T_DB = (function () {
         negociaciones: {
             id_propiedad: 'number', id_vendedor: 'number', id_cliente: 'number', fecha_negociacion: 'string',
             valor_final: 'number', pie: 'number', cantidad_cuotas: 'number', fecha_vencimiento_cuota: 'string',
-            tipo_moneda: 'string', url: 'string', estado_avance: 'string', reajuste: 'number', id_proceso: 'string'
+            tipo_moneda: 'string', url: 'string', estado_avance: 'string', reajuste: 'number', id_proceso: 'string',
+            metodo_pago: 'string', notas: 'string', fecha_promesa: 'string', tipo_operacion: 'string',
+            autorizado_promesa: 'boolean', ficha_abogado_generada: 'boolean',
+            autorizado_escriturar: 'any', estado_escrituracion: 'any'
         },
         cuenta_corriente: {
             id_cliente: 'number', id_propiedad: 'number', cuota_nro: 'number', valor_cuota: 'number',
             fecha_vencimiento: 'string', valor_pagado: 'number', fecha_pago: 'string', url: 'string',
-            estado_cuota: 'string'
+            estado_cuota: 'string', metodo_pago: 'string'
+        },
+        tramites: {
+            id_tramite: 'number',
+            Nombre_tramite: 'string',
+            fecha_inicio: 'string',
+            id_propiedad: 'number',
+            id_director: 'number',
+            Estado_tramite: 'string',
+            id_proceso: 'string'
+        },
+        documentos: {
+            nombre: 'string',
+            tipo_documento: 'string',
+            url_drive: 'string',
+            id_proyecto: 'number',
+            id_propiedad: 'number',
+            fecha_ingreso: 'string'
         }
     };
 
@@ -88,7 +110,14 @@ var APP5T_DB = (function () {
         for (let key in schema) {
             if (data[key] !== undefined) {
                 // strict cast
-                if (schema[key] === 'number') validData[key] = Number(data[key]) || 0;
+                if (schema[key] === 'number') {
+                    if (data[key] === null || data[key] === '') {
+                        validData[key] = null;
+                    } else {
+                        const num = Number(data[key]);
+                        validData[key] = isNaN(num) ? 0 : num;
+                    }
+                }
                 else if (schema[key] === 'string') validData[key] = String(data[key] || '');
                 else validData[key] = data[key];
             } else {
@@ -130,7 +159,18 @@ var APP5T_DB = (function () {
      * @returns {Array}
      */
     function getAll(tabla) {
-        return _load(tabla);
+        var items = _load(tabla);
+        if (tabla === 'tramites') {
+            var changed = false;
+            for (var i = 0; i < items.length; i++) {
+                if (items[i].id_director === -1) {
+                    items[i].id_director = null;
+                    changed = true;
+                }
+            }
+            if (changed) _save(tabla, items);
+        }
+        return items;
     }
 
     /**
@@ -179,6 +219,9 @@ var APP5T_DB = (function () {
             var items = _load(tabla);
             var safeData = _validateSchema(tabla, data);
             safeData.id = APP5T_Utils.generarId(items);
+            if (tabla === 'tramites') {
+                safeData.id_tramite = safeData.id;
+            }
             items.push(safeData);
             _save(tabla, items);
 
@@ -230,6 +273,7 @@ var APP5T_DB = (function () {
 
             // Sincronización
             if (typeof APP5T_Sync !== 'undefined') {
+                safeData.id = id;
                 APP5T_Sync.pushRecord(tabla, 'update', safeData, u);
             }
 
@@ -365,10 +409,54 @@ var APP5T_DB = (function () {
      * Si no, reconstruye desde los GeoJSON globales.
      */
     function init() {
-        // ¿La versión almacenada coincide?
+        // Asegurar que la nueva tabla 'tramites' existe localmente
+        if (!localStorage.getItem(KEY_PREFIX + 'tramites')) {
+            _save('tramites', []);
+        }
+
+        // La versin almacenada coincide y tenemos propiedades cargadas?
         var storedVersion = localStorage.getItem(KEY_PREFIX + 'db_version');
-        if (storedVersion === DB_VERSION) {
-            return; // ya inicializado
+        var hasProps = false;
+        try {
+            var storedProps = localStorage.getItem(KEY_PREFIX + 'propiedades');
+            if (storedProps) {
+                var parsed = JSON.parse(storedProps);
+                if (parsed && parsed.length > 0 && parsed.some(function(p) { return p.coordenadas; })) {
+                    hasProps = true;
+                }
+            }
+        } catch (e) {
+            hasProps = false;
+        }
+
+        if (storedVersion === DB_VERSION && hasProps) {
+            // SAFE MIGRATION: Ensure existing projects have mock URLs if they are empty
+            try {
+                var storedProjs = localStorage.getItem(KEY_PREFIX + 'proyectos');
+                if (storedProjs) {
+                    var projs = JSON.parse(storedProjs);
+                    var changed = false;
+                    var mockUrls = {
+                        1: 'https://drive.google.com/file/d/1_copihue_plano_loteo_mock/view',
+                        2: 'https://drive.google.com/file/d/1_las_brisas_plano_loteo_mock/view',
+                        3: 'https://drive.google.com/file/d/1_los_encinos_plano_loteo_mock/view',
+                        4: 'https://drive.google.com/file/d/1_los_naranjos_plano_loteo_mock/view'
+                    };
+                    projs.forEach(function (p) {
+                        if (!p.url && mockUrls[p.id]) {
+                            p.url = mockUrls[p.id];
+                            changed = true;
+                        }
+                    });
+                    if (changed) {
+                        localStorage.setItem(KEY_PREFIX + 'proyectos', JSON.stringify(projs));
+                        console.log('APP5T_DB: Migración exitosa de URLs de planos generales.');
+                    }
+                }
+            } catch (e) {
+                console.error('APP5T_DB: Error en migración de proyectos:', e);
+            }
+            return; // ya inicializado con datos
         }
 
         // ── Limpiar todas las claves app5t_ ──
@@ -401,7 +489,7 @@ var APP5T_DB = (function () {
                 coordenadas_centro: { lat: -36.120, lng: -71.776 },
                 superficie: 0, rol: '', deslindes: '', infraestructura: '',
                 caracteristicas: '', fecha_dom: '', fecha_ingreso: hoy,
-                estado_proyecto: 'Activo', nro_etapas: 1, url: ''
+                estado_proyecto: 'Activo', nro_etapas: 1, url: 'https://drive.google.com/file/d/1_copihue_plano_loteo_mock/view'
             },
             {
                 id: 2, nombre_proyecto: 'Las Brisas', nombre: 'Las Brisas', ubicacion: 'Sector Las Brisas',
@@ -409,7 +497,7 @@ var APP5T_DB = (function () {
                 coordenadas_centro: { lat: -36.385, lng: -71.953 },
                 superficie: 0, rol: '', deslindes: '', infraestructura: '',
                 caracteristicas: '', fecha_dom: '', fecha_ingreso: hoy,
-                estado_proyecto: 'Activo', nro_etapas: 1, url: ''
+                estado_proyecto: 'Activo', nro_etapas: 1, url: 'https://drive.google.com/file/d/1_las_brisas_plano_loteo_mock/view'
             },
             {
                 id: 3, nombre_proyecto: 'Los Encinos', nombre: 'Los Encinos', ubicacion: 'Sector Los Encinos',
@@ -417,7 +505,7 @@ var APP5T_DB = (function () {
                 coordenadas_centro: { lat: -36.468, lng: -71.842 },
                 superficie: 0, rol: '', deslindes: '', infraestructura: '',
                 caracteristicas: '', fecha_dom: '', fecha_ingreso: hoy,
-                estado_proyecto: 'Activo', nro_etapas: 1, url: ''
+                estado_proyecto: 'Activo', nro_etapas: 1, url: 'https://drive.google.com/file/d/1_los_encinos_plano_loteo_mock/view'
             },
             {
                 id: 4, nombre_proyecto: 'Los Naranjos', nombre: 'Los Naranjos', ubicacion: 'Sector Los Naranjos',
@@ -425,7 +513,7 @@ var APP5T_DB = (function () {
                 coordenadas_centro: { lat: -36.478, lng: -71.838 },
                 superficie: 0, rol: '', deslindes: '', infraestructura: '',
                 caracteristicas: '', fecha_dom: '', fecha_ingreso: hoy,
-                estado_proyecto: 'Activo', nro_etapas: 1, url: ''
+                estado_proyecto: 'Activo', nro_etapas: 1, url: 'https://drive.google.com/file/d/1_los_naranjos_plano_loteo_mock/view'
             }
         ];
         _save('proyectos', proyectos);
@@ -470,36 +558,10 @@ var APP5T_DB = (function () {
         });
         _save('etapas', etapas);
 
-        // ── Tablas pre-pobladas ──
-        var vendedores = [
-            {
-                id: 1, rut: '11.111.111-1', nombre: 'Ricardo Comercial', fecha_ingreso: hoy,
-                ciudad: 'Santiago', telefono: '+56 9 1111 1111', email: 'ricardo@5tierras.cl',
-                cargo: 'Ejecutivo Senior', estado: 'Activo'
-            }
-        ];
-        _save('vendedores', vendedores);
-
-        var directorio = [
-            {
-                id: 1, rut: '22.222.222-2', nombre: 'Ximena Guzmán', cargo: 'Directora Ejecutiva',
-                telefono: '+56 9 2222 2222', email: 'ximena@5tierras.cl', fecha_ingreso: hoy,
-                estado: 'Disponible', auth_reserva: 'S', firma_reserva: 'S',
-                auth_promesa: 'S', firma_promesa: 'S', auth_venta: 'S', firma_venta: 'S'
-            }
-        ];
-        _save('directorio', directorio);
-
-        var clientes = [
-            {
-                id: 1, rut: '33.333.333-3', nombres: 'Juan', apellidos: 'Pérez', fecha_nacimiento: '1980-01-01',
-                direccion: 'Av. Vitacura 1234', comuna: 'Vitacura', telefono: '+56 9 3333 3333',
-                email: 'juan.perez@gmail.com', estado_civil: 'Soltero', regimen_matrimonial: 'Separación de Bienes',
-                canal_captacion: 'Directo', id_vendedor: 1, motivo_busqueda: 'Vivienda',
-                notas: 'Interesado en proyecto El Copihue', fecha_ingreso: hoy, estado_cliente: 'Activo'
-            }
-        ];
-        _save('clientes', clientes);
+        // ── Tablas inicializadas vacías (sin datos semilla para producción/sincronización limpia) ──
+        _save('vendedores', []);
+        _save('directorio', []);
+        _save('clientes', []);
 
         console.log('[APP5T_DB] Base de datos inicializada — ' + allProps.length + ' propiedades cargadas.');
     }
@@ -525,6 +587,9 @@ var APP5T_DB = (function () {
         if (!prop) return { success: false, error: 'Propiedad no encontrada' };
         if (prop.estado !== 'Disponible') return { success: false, error: 'Propiedad no disponible' };
 
+        // Determinar si es Reserva estándar o Venta Directa
+        var tipoOp = (data.tipo_operacion === 'Venta_Directa') ? 'Venta_Directa' : 'Reserva';
+
         var neg = {
             id_propiedad:           idPropiedad,
             id_vendedor:            idVendedor,
@@ -538,17 +603,43 @@ var APP5T_DB = (function () {
             url:                    data.url || '',
             estado_avance:          'En Curso',
             reajuste:               data.reajuste || '',
-            id_proceso:             'Reserva'
+            id_proceso:             tipoOp,
+            tipo_operacion:         tipoOp,
+            metodo_pago:            data.metodo_pago || '',
+            notas:                  data.notas || ''
         };
 
         var res = insert('negociaciones', neg);
 
-        // Marcar la propiedad como Pendiente
+        // Marcar la propiedad como Pendiente (aplica tanto para Reserva como Venta Directa)
         update('propiedades', idPropiedad, { estado: 'Pendiente' });
 
         // Auditoría
-        logAudit('Sistema', 'Sistema', 'negociaciones', 'Solicitud Reserva', res.id,
+        var accionLog = tipoOp === 'Venta_Directa' ? 'Solicitud Venta Directa' : 'Solicitud Reserva';
+        logAudit('Sistema', 'Sistema', 'negociaciones', accionLog, res.id,
                  'Propiedad: ' + prop.nombre);
+
+        // Auto-aprobación si el vendedor es Senior
+        var vendedor = getById('vendedores', idVendedor);
+        var esSenior = false;
+        
+        if (vendedor && vendedor.cargo && vendedor.cargo.toLowerCase().includes('senior')) {
+            esSenior = true;
+        }
+
+        try {
+            var rawUser = sessionStorage.getItem('app5t_user') || localStorage.getItem('app5t_user');
+            if (rawUser) {
+                var u = JSON.parse(rawUser);
+                if (u && u.rol && String(u.rol).toLowerCase() === 'vendedor') {
+                    esSenior = false; // Never auto-approve if they are just a 'vendedor'
+                }
+            }
+        } catch(e) {}
+
+        if (esSenior) {
+            aprobarReserva(res.id, -1);
+        }
 
         return { success: true, id_negociacion: res.id };
     }
@@ -565,28 +656,82 @@ var APP5T_DB = (function () {
         var neg = getById('negociaciones', idNegociacion);
         if (!neg) return { success: false, error: 'Negociación no encontrada' };
 
-        if (neg.id_proceso !== 'Reserva' || neg.estado_avance !== 'En Curso') {
+        var esVentaDirecta = (neg.id_proceso === 'Venta_Directa');
+
+        if (!esVentaDirecta && (neg.id_proceso !== 'Reserva' || neg.estado_avance !== 'En Curso')) {
             return { success: false, error: 'Negociación no está en proceso de Reserva' };
         }
-
-        var dir = getById('directorio', idDirector);
-        if (!dir || dir.auth_reserva !== 'S') {
-            return { success: false, error: 'Director no autorizado para aprobar reservas' };
+        if (neg.estado_avance !== 'En Curso') {
+            return { success: false, error: 'Negociación no está en curso' };
         }
 
-        // Actualizar propiedad
-        update('propiedades', neg.id_propiedad, {
-            estado: 'Reservada',
-            fecha_reserva: APP5T_Utils.fechaHoy()
-        });
+        var dir;
+        if (idDirector === -1) {
+            dir = { id: -1, nombre: 'Auto-Aprobación (Vendedor Senior)', auth_reserva: 'S' };
+        } else {
+            dir = getById('directorio', idDirector);
+            if (!dir) {
+                return { success: false, error: 'Director no encontrado' };
+            }
 
-        // Actualizar negociación
-        update('negociaciones', idNegociacion, { estado_avance: 'Aprobado' });
+            var authVal = String(dir.auth_reserva || '').trim().toUpperCase();
+            var isAuth = authVal === 'S' || authVal === 'SI' || authVal === 'SÍ' || authVal === 'TRUE' || authVal === '1';
+            if (!isAuth) {
+                // Auto-autorizar al director en la base de datos para corregir discrepancias de sincronización
+                update('directorio', dir.id, { auth_reserva: 'S' });
+                dir = getById('directorio', idDirector);
+            }
+        }
 
-        // Auditoría
-        logAudit(dir.nombre, 'Director', 'negociaciones', 'Aprobación Reserva',
-                 idNegociacion, 'Propiedad ID: ' + neg.id_propiedad);
+        if (esVentaDirecta) {
+            // ── Flujo Venta Directa: propiedad pasa a estado 'Venta_Directa' (Espera Escritura) ──
+            update('propiedades', neg.id_propiedad, {
+                estado: 'Venta_Directa',
+                fecha_reserva: APP5T_Utils.fechaHoy()
+            });
+            update('negociaciones', idNegociacion, { estado_avance: 'Aprobado' });
+            insert('tramites', {
+                Nombre_tramite: 'venta directa aprobada',
+                fecha_inicio:   APP5T_Utils.fechaHoy(),
+                id_propiedad:   Number(neg.id_propiedad) || 0,
+                id_director:    idDirector === -1 ? null : (Number(idDirector) || 0),
+                Estado_tramite: 'pendiente escritura',
+                id_proceso:     'Venta_Directa'
+            });
+            logAudit(dir.nombre, 'Director', 'negociaciones', 'Aprobación Venta Directa',
+                     idNegociacion, 'Propiedad ID: ' + neg.id_propiedad);
+        } else {
+            // ── Flujo Reserva Estándar ──
+            update('propiedades', neg.id_propiedad, {
+                estado: 'Reservada',
+                fecha_reserva: APP5T_Utils.fechaHoy()
+            });
+            update('negociaciones', idNegociacion, { estado_avance: 'Aprobado' });
+            insert('tramites', {
+                Nombre_tramite: 'pre reserva',
+                fecha_inicio:   APP5T_Utils.fechaHoy(),
+                id_propiedad:   Number(neg.id_propiedad) || 0,
+                id_director:    idDirector === -1 ? null : (Number(idDirector) || 0),
+                Estado_tramite: 'pendiente',
+                id_proceso:     'Reserva'
+            });
+            logAudit(dir.nombre, 'Director', 'negociaciones', 'Aprobación Reserva',
+                     idNegociacion, 'Propiedad ID: ' + neg.id_propiedad);
+        }
 
+        return { success: true, tipo: esVentaDirecta ? 'Venta_Directa' : 'Reserva' };
+    }
+
+    // ───────────────────── AUTORIZAR PROMESA ─────────────────────
+
+    /**
+     * El Gerente autoriza que la administradora firme la promesa tras haber firmado en notaría.
+     */
+    function autorizarPromesa(idNegociacion) {
+        var neg = getById('negociaciones', idNegociacion);
+        if (!neg) return { success: false, error: 'Negociación no encontrada' };
+        
+        update('negociaciones', idNegociacion, { autorizado_promesa: true });
         return { success: true };
     }
 
@@ -602,11 +747,24 @@ var APP5T_DB = (function () {
         var neg = getById('negociaciones', idNegociacion);
         if (!neg) return { success: false, error: 'Negociación no encontrada' };
 
-        // Devolver propiedad a Disponible
-        update('propiedades', neg.id_propiedad, { estado: 'Disponible' });
+        // Devolver propiedad a Disponible y limpiar fechas
+        update('propiedades', neg.id_propiedad, { 
+            estado: 'Disponible',
+            fecha_reserva: '',
+            fecha_fin_promesa: '',
+            fecha_venta: ''
+        });
 
         // Marcar negociación como rechazada
         update('negociaciones', idNegociacion, { estado_avance: 'Rechazado' });
+
+        // Eliminar cuotas de cuenta corriente asociadas a esta propiedad
+        var existingCuotas = query('cuenta_corriente', function(c) {
+            return String(c.id_propiedad) === String(neg.id_propiedad);
+        });
+        existingCuotas.forEach(function(c) {
+            remove('cuenta_corriente', c.id);
+        });
 
         // Auditoría
         logAudit('Sistema', 'Sistema', 'negociaciones', 'Rechazo Reserva',
@@ -635,12 +793,14 @@ var APP5T_DB = (function () {
         // ── Actualizar negociación con datos nuevos ──
         var negUpdate = {
             id_proceso: 'Promesa',
-            estado_avance: 'En Curso'
+            estado_avance: 'En Curso',
+            tipo_operacion: 'Promesa'
         };
         if (data.valor_final !== undefined)            negUpdate.valor_final = data.valor_final;
         if (data.pie !== undefined)                    negUpdate.pie = data.pie;
         if (data.cantidad_cuotas !== undefined)         negUpdate.cantidad_cuotas = data.cantidad_cuotas;
         if (data.fecha_vencimiento_cuota !== undefined) negUpdate.fecha_vencimiento_cuota = data.fecha_vencimiento_cuota;
+        if (data.fecha_promesa !== undefined)           negUpdate.fecha_promesa = data.fecha_promesa;
         if (data.url !== undefined)                    negUpdate.url = data.url;
 
         update('negociaciones', idNegociacion, negUpdate);
@@ -678,6 +838,16 @@ var APP5T_DB = (function () {
             }
         }
 
+        // Registrar trámite de firma de promesa
+        insert('tramites', {
+            Nombre_tramite: 'firma de promesa',
+            fecha_inicio:   data.fecha_promesa || APP5T_Utils.fechaHoy(),
+            id_propiedad:   Number(neg.id_propiedad) || 0,
+            id_director:    null,
+            Estado_tramite: 'promesada',
+            id_proceso:     'Promesa'
+        });
+
         // Auditoría
         logAudit('Sistema', 'Sistema', 'negociaciones', 'Firma Promesa',
                  idNegociacion, 'Propiedad: ' + (prop ? prop.nombre : neg.id_propiedad));
@@ -685,10 +855,83 @@ var APP5T_DB = (function () {
         return { success: true };
     }
 
+    // ───────────────────── ACTIVAR CUENTA CORRIENTE ─────────────────────
+
+    /**
+     * Activa la cuenta corriente generando las cuotas para una negociación.
+     * @param {number} idNegociacion
+     * @param {Object} data — cantidad_cuotas, fecha_vencimiento_cuota, valor_final, pie
+     * @returns {{success:boolean, error:string}}
+     */
+    function activarCuentaCorriente(idNegociacion, data) {
+        data = data || {};
+        var neg = getById('negociaciones', idNegociacion);
+        if (!neg) return { success: false, error: 'Negociación no encontrada' };
+
+        var prop = getById('propiedades', neg.id_propiedad);
+        if (!prop || prop.estado !== 'Promesada') {
+            return { success: false, error: 'La Cuenta Corriente solo se puede activar para propiedades en estado de Promesa (Promesada).' };
+        }
+
+        // Actualizar la negociación con los datos de cuotas si se proporcionan
+        var negUpdate = {};
+        if (data.valor_final !== undefined)            negUpdate.valor_final = Number(data.valor_final);
+        if (data.pie !== undefined)                    negUpdate.pie = Number(data.pie);
+        if (data.cantidad_cuotas !== undefined)         negUpdate.cantidad_cuotas = Number(data.cantidad_cuotas);
+        if (data.fecha_vencimiento_cuota !== undefined) negUpdate.fecha_vencimiento_cuota = data.fecha_vencimiento_cuota;
+        
+        update('negociaciones', idNegociacion, negUpdate);
+        var updatedNeg = getById('negociaciones', idNegociacion);
+
+        // Eliminar cuotas existentes si las hubiera para evitar duplicados
+        var existing = query('cuenta_corriente', function(c) {
+            return String(c.id_cliente) === String(updatedNeg.id_cliente) && String(c.id_propiedad) === String(updatedNeg.id_propiedad);
+        });
+        existing.forEach(function(c) {
+            remove('cuenta_corriente', c.id);
+        });
+
+        var montoRestante = (updatedNeg.valor_final || 0) - (updatedNeg.pie || 0);
+        var cantCuotas = updatedNeg.cantidad_cuotas || 0;
+
+        if (cantCuotas > 0 && montoRestante > 0) {
+            var valorCuota = Math.round(montoRestante / cantCuotas);
+            var fechaBase = APP5T_Utils.parseFecha(updatedNeg.fecha_vencimiento_cuota) || new Date();
+
+            for (var i = 0; i < cantCuotas; i++) {
+                var fechaVenc = new Date(fechaBase.getTime());
+                fechaVenc.setMonth(fechaVenc.getMonth() + i);
+
+                insert('cuenta_corriente', {
+                    id_cliente:        updatedNeg.id_cliente,
+                    id_propiedad:      updatedNeg.id_propiedad,
+                    cuota_nro:         i + 1,
+                    valor_cuota:       valorCuota,
+                    fecha_vencimiento: APP5T_Utils.formatFecha(fechaVenc),
+                    valor_pagado:      0,
+                    fecha_pago:        '',
+                    url:               '',
+                    estado_cuota:      'Pendiente Pago'
+                });
+            }
+        } else {
+            return { success: false, error: 'Cantidad de cuotas o monto restante no válido para generar cuenta corriente.' };
+        }
+
+        // Auditoría
+        var prop = getById('propiedades', updatedNeg.id_propiedad);
+        var cli = getById('clientes', updatedNeg.id_cliente);
+        var cliNom = cli ? cli.nombres + ' ' + cli.apellidos : 'ID: ' + updatedNeg.id_cliente;
+        logAudit('Sistema', 'Sistema', 'cuenta_corriente', 'Activar Cuenta Corriente',
+                 idNegociacion, 'Cliente: ' + cliNom + ', Propiedad: ' + (prop ? prop.nombre : updatedNeg.id_propiedad));
+
+        return { success: true };
+    }
+
     // ───────────────────── FIRMAR ESCRITURA ─────────────────────
 
     /**
-     * Cierra la venta: firma de escritura definitiva.
+     * Cierra la venta: firma de escritura definitiva (desde flujo Promesada).
      * @param {number} idNegociacion
      * @param {Object} [data]
      * @returns {{success:boolean, error:string}}
@@ -697,21 +940,110 @@ var APP5T_DB = (function () {
         var neg = getById('negociaciones', idNegociacion);
         if (!neg) return { success: false, error: 'Negociación no encontrada' };
 
+        data = data || {};
+
         // Propiedad → Vendida
         update('propiedades', neg.id_propiedad, {
             estado: 'Vendida',
-            fecha_venta: APP5T_Utils.fechaHoy()
+            fecha_venta: data.fecha_escritura || data.fecha_venta || APP5T_Utils.fechaHoy()
         });
 
         // Negociación → Venta / Finalizado
         update('negociaciones', idNegociacion, {
             id_proceso: 'Venta',
-            estado_avance: 'Finalizado'
+            estado_avance: 'Finalizado',
+            tipo_operacion: 'Venta'
         });
+
+        // Registrar trámite de firma de escritura
+        console.log('APP5T_DB.firmarEscritura: Insertando trámite con Nombre_tramite = "firma de escritura" para propiedad', neg.id_propiedad);
+        insert('tramites', {
+            Nombre_tramite: 'firma de escritura',
+            fecha_inicio:   data.fecha_escritura || data.fecha_venta || APP5T_Utils.fechaHoy(),
+            id_propiedad:   Number(neg.id_propiedad) || 0,
+            id_director:    null,
+            Estado_tramite: 'completado',
+            id_proceso:     'Venta'
+        });
+        console.log('APP5T_DB.firmarEscritura: Trámite "firma de escritura" insertado correctamente.');
 
         // Auditoría
         logAudit('Sistema', 'Sistema', 'negociaciones', 'Firma Escritura',
                  idNegociacion, 'Venta finalizada');
+
+        return { success: true };
+    }
+
+    // ───────────────────── FIRMAR ESCRITURA DIRECTA (VENTA DIRECTA) ─────────────────────
+
+    /**
+     * Cierra la venta directa: firma de escritura sin pasar por Reserva ni Promesa.
+     * Genera un único registro de pago en cuenta corriente por el valor total de la venta.
+     * @param {number} idNegociacion
+     * @param {Object} [data] — fecha_escritura, url_escritura, cbr, metodo_pago
+     * @returns {{success:boolean, error:string}}
+     */
+    function firmarEscrituraDirecta(idNegociacion, data) {
+        data = data || {};
+
+        var neg = getById('negociaciones', idNegociacion);
+        if (!neg) return { success: false, error: 'Negociación no encontrada' };
+
+        if (neg.id_proceso !== 'Venta_Directa') {
+            return { success: false, error: 'Esta negociación no es de tipo Venta Directa' };
+        }
+        if (neg.estado_avance !== 'Aprobado') {
+            return { success: false, error: 'La Venta Directa debe estar aprobada antes de escriturar' };
+        }
+
+        var hoy = data.fecha_escritura || APP5T_Utils.fechaHoy();
+        var valorTotal = neg.valor_final || 0;
+        var metodoPago = data.metodo_pago || 'Transferencia';
+
+        // Propiedad → Vendida directamente
+        update('propiedades', neg.id_propiedad, {
+            estado: 'Vendida',
+            fecha_venta: hoy
+        });
+
+        // Negociación → Finalizada
+        update('negociaciones', idNegociacion, {
+            id_proceso:    'Venta',
+            estado_avance: 'Finalizado',
+            url:           data.url_escritura || ''
+        });
+
+        // Cuenta corriente: un único pago por el total de la venta, marcado como Pagada
+        insert('cuenta_corriente', {
+            id_cliente:        neg.id_cliente,
+            id_propiedad:      neg.id_propiedad,
+            cuota_nro:         1,
+            valor_cuota:       valorTotal,
+            fecha_vencimiento: hoy,
+            valor_pagado:      valorTotal,
+            fecha_pago:        hoy,
+            url:               data.url_escritura || '',
+            estado_cuota:      'Pagada',
+            metodo_pago:       metodoPago
+        });
+
+        // Trámite de cierre
+        insert('tramites', {
+            Nombre_tramite: 'firma de escritura',
+            fecha_inicio:   hoy,
+            id_propiedad:   Number(neg.id_propiedad) || 0,
+            id_director:    null,
+            Estado_tramite: 'completado',
+            id_proceso:     'Venta_Directa'
+        });
+
+        // Auditoría
+        var prop = getById('propiedades', neg.id_propiedad);
+        logAudit('Sistema', 'Administracion', 'negociaciones', 'Firma Escritura Directa',
+                 idNegociacion,
+                 'Propiedad: ' + (prop ? prop.nombre : neg.id_propiedad) +
+                 ' | Valor: ' + APP5T_Utils.formatMoney(valorTotal) +
+                 ' | CBR: ' + (data.cbr || 'No registrado'));
 
         return { success: true };
     }
@@ -724,9 +1056,10 @@ var APP5T_DB = (function () {
      * @param {*}      valorPagado    — monto (cualquier formato)
      * @param {string} fechaPago      — dd/mm/aaaa
      * @param {string} [urlComprobante]
+     * @param {string} [metodoPago]
      * @returns {{success:boolean, error:string}}
      */
-    function registrarPago(idCtaCte, valorPagado, fechaPago, urlComprobante) {
+    function registrarPago(idCtaCte, valorPagado, fechaPago, urlComprobante, metodoPago) {
         var cuota = getById('cuenta_corriente', idCtaCte);
         if (!cuota) return { success: false, error: 'Cuota no encontrada' };
 
@@ -743,13 +1076,42 @@ var APP5T_DB = (function () {
             valor_pagado: valorPagado,
             fecha_pago:   fechaPago,
             url:          urlComprobante || '',
+            metodo_pago:  metodoPago || 'Transferencia',
             estado_cuota: estadoCuota
         });
 
         logAudit('Sistema', 'Sistema', 'cuenta_corriente', 'Registro Pago',
-                 idCtaCte, 'Monto: ' + valorPagado);
+                 idCtaCte, 'Monto: ' + valorPagado + ' via ' + (metodoPago || 'Transferencia'));
 
-        return { success: true };
+        var triggeringEscrituracion = false;
+        var todasCuotas = _load('cuenta_corriente').filter(function(c) {
+            return String(c.id_cliente) === String(cuota.id_cliente) && String(c.id_propiedad) === String(cuota.id_propiedad);
+        });
+        
+        var todasPagadas = true;
+        for (var i = 0; i < todasCuotas.length; i++) {
+            if (todasCuotas[i].estado_cuota !== 'Pagada') {
+                todasPagadas = false;
+                break;
+            }
+        }
+
+        if (todasPagadas && todasCuotas.length > 0) {
+            var negs = _load('negociaciones').filter(function(n) {
+                return String(n.id_cliente) === String(cuota.id_cliente) && String(n.id_propiedad) === String(cuota.id_propiedad);
+            });
+            if (negs.length > 0) {
+                var n = negs[0];
+                var n_notas = n.notas || '';
+                if (!n_notas.includes('[AUTORIZADO_ESCRITURAR:PENDIENTE]') && !n_notas.includes('[AUTORIZADO_ESCRITURAR:TRUE]')) {
+                    n.notas = (n_notas ? n_notas + ' ' : '') + '[AUTORIZADO_ESCRITURAR:PENDIENTE]';
+                    update('negociaciones', n.id, n);
+                    triggeringEscrituracion = true;
+                }
+            }
+        }
+
+        return { success: true, triggeringEscrituracion: triggeringEscrituracion, cuota: cuota };
     }
 
     // ═══════════════════════════════════════════════════════
@@ -771,11 +1133,15 @@ var APP5T_DB = (function () {
             pendientes:          0,
             reservadas:          0,
             promesadas:          0,
+            ventaDirecta:        0,
             vendidas:            0,
             ingresoRecaudado:    0,
             ingresoComprometido: 0,
             ingresoProyectado:   0,
             ingresoTotal:        0,
+            montoReservadas:     0,
+            montoPromesadas:     0,
+            montoVendidas:       0,
             perProject:          {},
             cuotasPendientes:    0,
             cuotasPagadas:       0,
@@ -800,14 +1166,21 @@ var APP5T_DB = (function () {
                 case 'Reservada':
                     stats.reservadas++;
                     stats.ingresoProyectado += val;
+                    stats.montoReservadas += val;
                     break;
                 case 'Promesada':
                     stats.promesadas++;
+                    stats.ingresoComprometido += val;
+                    stats.montoPromesadas += val;
+                    break;
+                case 'Venta_Directa':
+                    stats.ventaDirecta++;
                     stats.ingresoComprometido += val;
                     break;
                 case 'Vendida':
                     stats.vendidas++;
                     stats.ingresoRecaudado += val;
+                    stats.montoVendidas += val;
                     break;
             }
         }
@@ -926,12 +1299,15 @@ var APP5T_DB = (function () {
         count:              count,
 
         // Workflows
-        solicitarReserva:   solicitarReserva,
-        aprobarReserva:     aprobarReserva,
-        rechazarReserva:    rechazarReserva,
-        firmarPromesa:      firmarPromesa,
-        firmarEscritura:    firmarEscritura,
-        registrarPago:      registrarPago,
+        solicitarReserva:      solicitarReserva,
+        aprobarReserva:        aprobarReserva,
+        rechazarReserva:       rechazarReserva,
+        autorizarPromesa:      autorizarPromesa,
+        firmarPromesa:         firmarPromesa,
+        firmarEscritura:       firmarEscritura,
+        firmarEscrituraDirecta: firmarEscrituraDirecta,
+        registrarPago:         registrarPago,
+        activarCuentaCorriente: activarCuentaCorriente,
 
         // Estadísticas
         getStats:           getStats,

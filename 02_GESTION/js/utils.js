@@ -169,13 +169,23 @@ var APP5T_Utils = (function () {
      */
     function parseFecha(str) {
         if (!str || typeof str !== 'string') return null;
+        if (str.includes('-')) {
+            var p = str.split('-');
+            if (p.length === 3 && p[0].length === 4) {
+                var d = new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1, parseInt(p[2], 10));
+                return isNaN(d.getTime()) ? null : d;
+            }
+        }
         var partes = str.split('/');
+        if (partes.length !== 3) {
+            partes = str.split('-');
+        }
         if (partes.length !== 3) return null;
         var dd = parseInt(partes[0], 10);
         var mm = parseInt(partes[1], 10) - 1;
         var yyyy = parseInt(partes[2], 10);
-        var d = new Date(yyyy, mm, dd);
-        return isNaN(d.getTime()) ? null : d;
+        var d2 = new Date(yyyy, mm, dd);
+        return isNaN(d2.getTime()) ? null : d2;
     }
 
     /**
@@ -188,16 +198,30 @@ var APP5T_Utils = (function () {
     // ───────────────────── IDs ─────────────────────
 
     /**
-     * Genera siguiente ID numérico: max(id) + 1, o 1 si vacío.
+     * Genera un ID aleatorio entero grande para evitar colisiones en base de datos distribuida/compartida.
      */
     function generarId(array) {
-        if (!array || !array.length) return 1;
-        var maxId = 0;
-        for (var i = 0; i < array.length; i++) {
-            var itemId = parseInt(array[i].id, 10) || 0;
-            if (itemId > maxId) maxId = itemId;
-        }
-        return maxId + 1;
+        var attempts = 0;
+        var newId;
+        var exists;
+        
+        do {
+            // Rango de 32-bit entero firmado positivo: 10,000,000 a 2,000,000,000
+            newId = Math.floor(Math.random() * (2000000000 - 10000000 + 1)) + 10000000;
+            exists = false;
+            if (array && array.length) {
+                for (var i = 0; i < array.length; i++) {
+                    var itemId = parseInt(array[i].id, 10);
+                    if (itemId === newId) {
+                        exists = true;
+                        break;
+                    }
+                }
+            }
+            attempts++;
+        } while (exists && attempts < 100);
+        
+        return newId;
     }
 
     // ───────────────────── TOAST ─────────────────────
@@ -320,3 +344,4 @@ var APP5T_Utils = (function () {
         parsearSuperficie: parsearSuperficie
     };
 })();
+

@@ -1,18 +1,44 @@
 /**
  * =====================================================
  * SYNC.JS — APP5T_Sync
- * Módulo de Sincronización con Google Sheets — 5 Tierras
+ * Módulo de Sincronización con Supabase — 5 Tierras
  * 100% independiente del resto del stack
  * =====================================================
  */
 const APP5T_Sync = (() => {
   'use strict';
 
+  // Forzar limpieza de caché y estado local corrupto ante actualizaciones de versión
+  const CURRENT_VERSION = '20260718_2';
+  try {
+    const savedVersion = localStorage.getItem('app5t_script_version');
+    if (savedVersion !== CURRENT_VERSION) {
+      localStorage.setItem('app5t_script_version', CURRENT_VERSION);
+      const tablesToClear = [
+        'vendedores', 'clientes', 'proyectos', 'etapas', 'propiedades', 
+        'directorio', 'negociaciones', 'cuenta_corriente', 'tramites', 
+        'documentos', 'mock_users', 'sync_pending'
+      ];
+      tablesToClear.forEach(t => {
+        localStorage.removeItem('app5t_' + t);
+      });
+      console.warn("APP5T_Sync: Nueva versión detectada (" + CURRENT_VERSION + "). Almacenamiento local limpiado. Forzando recarga cache-busting.");
+      
+      // Force reload by appending version query param to bypass aggressive mobile caches
+      const url = new URL(window.location.href);
+      url.searchParams.set('v', CURRENT_VERSION);
+      window.location.href = url.toString();
+    }
+  } catch (e) {
+    console.error("APP5T_Sync: Error al verificar versión:", e);
+  }
+
   /* ══════════════════════════════════════════════════════
      CONFIGURATION
      ══════════════════════════════════════════════════════ */
   let CONFIG = {
-    APPS_SCRIPT_URL: '',
+    SUPABASE_URL: '',
+    SUPABASE_KEY: '',
     SYNC_INTERVAL: 30000,   // 30 seconds
     ENABLED: false
   };
@@ -20,175 +46,230 @@ const APP5T_Sync = (() => {
   const PENDING_KEY = 'app5t_sync_pending';
   let _intervalId = null;
   let _isSyncing = false;
+  const _inFlight = {};
+  let _pushQueuePromise = Promise.resolve();
+  let _pullTimeoutId = null;
+
+  function _enqueue(taskFn) {
+    _pushQueuePromise = _pushQueuePromise.then(async () => {
+      try {
+        return await taskFn();
+      } catch (err) {
+        console.error('APP5T_Sync: Error in queued task:', err);
+        throw err;
+      }
+    }).catch(err => {
+      console.warn('APP5T_Sync: Queue recovered from error:', err.message || err);
+    });
+    return _pushQueuePromise;
+  }
+
 
   /* ══════════════════════════════════════════════════════
-     DATA DICTIONARY MAPPING (Local ↔ Google Sheets)
+     DATA DICTIONARY MAPPING (Local <-> Supabase)
      ══════════════════════════════════════════════════════ */
   const MAPPING = {
     vendedores: {
-      sheetName: 'Vendedores',
+      tableName: 'Vendedores',
       pk: 'id',
       fields: {
-        id: 'Id_vendedor',
-        rut: 'Rut_vendedor',
-        nombre: 'Nombre_vendedor',
-        fecha_ingreso: 'Fecha_ingreso',
-        ciudad: 'Ciudad',
-        telefono: 'Telefono',
-        email: 'Correo_electronico',
-        cargo: 'Cargo',
-        estado: 'Estado'
+        id:            'id',
+        rut:           'rut',
+        nombre:        'nombre',
+        fecha_ingreso: 'fecha_ingreso',
+        ciudad:        'ciudad',
+        telefono:      'telefono',
+        email:         'email',
+        cargo:         'cargo',
+        estado:        'estado'
       }
     },
     clientes: {
-      sheetName: 'Clientes',
+      tableName: 'Clientes',
       pk: 'id',
       fields: {
-        id: 'Id_cliente',
-        rut: 'Rut_cliente',
-        nombres: 'Nombres',
-        apellidos: 'Apellidos',
-        fecha_nacimiento: 'Fecha_nacimiento',
-        direccion: 'Direccion',
-        comuna: 'Comuna',
-        telefono: 'Telefono',
-        email: 'Correo_electronico',
-        estado_civil: 'Estado_civil',
-        regimen_matrimonial: 'Regimen_matrimonial',
-        fecha_ingreso: 'Fecha_ingreso',
-        canal_captacion: 'Canal_captacion',
-        id_vendedor: 'Vendedor_assigned',
-        motivo_busqueda: 'Motivo_busqueda',
-        notas: 'Notas',
-        historial: 'Historial',
-        estado_cliente: 'Estado_cliente'
+        id:                   'id',
+        rut:                  'rut',
+        nombres:              'nombres',
+        apellidos:            'apellidos',
+        fecha_nacimiento:     'fecha_nacimiento',
+        direccion:            'direccion',
+        comuna:               'comuna',
+        telefono:             'telefono',
+        email:                'email',
+        estado_civil:         'estado_civil',
+        regimen_matrimonial:  'regimen_matrimonial',
+        fecha_ingreso:        'fecha_ingreso',
+        canal_captacion:      'canal_captacion',
+        id_vendedor:          'id_vendedor',
+        motivo_busqueda:      'motivo_busqueda',
+        notas:                'notas',
+        historial:            'historial',
+        estado_cliente:       'estado_cliente',
+        profesion:            'profesion'
       }
     },
     proyectos: {
-      sheetName: 'Proyectos',
+      tableName: 'Proyectos',
       pk: 'id',
       fields: {
-        id: 'Id_proyecto',
-        nombre_proyecto: 'Nombre_proyecto',
-        nombre: 'Nombre_proyecto',
-        ubicacion: 'Ubicacion',
-        comuna: 'Comuna',
-        coordenadas_centro: 'Coordenadas',
-        superficie: 'Superficie',
-        rol: 'Rol',
-        deslindes: 'Deslindes',
-        infraestructura: 'Infraestructura',
-        caracteristicas: 'Caracteristicas',
-        fecha_dom: 'Fecha_DOM',
-        fecha_ingreso: 'Fecha_ingreso',
-        estado_proyecto: 'Estado_proyecto',
-        nro_etapas: 'Nro_etapas',
-        url: 'Url'
+        id:                'id',
+        nombre_proyecto:   'nombre_proyecto',
+        nombre:            'nombre_proyecto',
+        ubicacion:         'ubicacion',
+        comuna:            'comuna',
+        coordenadas_centro:'coordenadas_centro',
+        superficie:        'superficie',
+        rol:               'rol',
+        deslindes:         'deslindes',
+        infraestructura:   'infraestructura',
+        caracteristicas:   'caracteristicas',
+        fecha_dom:         'fecha_dom',
+        fecha_ingreso:     'fecha_ingreso',
+        estado_proyecto:   'estado_proyecto',
+        nro_etapas:        'nro_etapas',
+        url:               'url'
       }
     },
     etapas: {
-      sheetName: 'Etapas',
+      tableName: 'Etapas',
       pk: 'id',
       fields: {
-        id: 'Id_etapa',
-        id_proyecto: 'Id_proyecto',
-        nombre_etapa: 'Nombre_etapa',
-        nombre: 'Nombre_etapa',
-        nro_lotes: 'Nro_lotes',
-        superficie: 'Superficie',
-        fecha_ingreso: 'Fecha_ingreso',
-        fecha_dom: 'Fecha_DOM',
-        estado_etapa: 'Estado_etapa',
-        fecha_inicio: 'Fecha_inicio',
-        fecha_cierre: 'Fecha_cierre',
-        url: 'Url'
+        id:            'id',
+        id_proyecto:   'id_proyecto',
+        nombre_etapa:  'nombre_etapa',
+        nombre:        'nombre_etapa',
+        nro_lotes:     'nro_lotes',
+        superficie:    'superficie',
+        fecha_ingreso: 'fecha_ingreso',
+        fecha_dom:     'fecha_dom',
+        estado_etapa:  'estado_etapa',
+        fecha_inicio:  'fecha_inicio',
+        fecha_cierre:  'fecha_cierre',
+        url:           'url'
       }
     },
     propiedades: {
-      sheetName: 'Propiedades',
+      tableName: 'Propiedades',
       pk: 'id',
       fields: {
-        id: 'Id_propiedad',
-        id_etapa: 'Id_etapa',
-        id_proyecto: 'Id_proyecto',
-        nombre: 'Nombre_propiedad',
-        rol: 'Rol_propiedad',
-        superficie: 'Superficie',
-        valor_final: 'Valor_final',
-        fecha_ingreso: 'Fecha_ingreso',
-        deslindes: 'Deslindes',
-        infraestructura: 'Infraestructura',
-        fecha_reserva: 'Fecha_reserva',
-        fecha_fin_promesa: 'Fecha_fin_promesa',
-        fecha_venta: 'Fecha_venta',
-        url: 'Url',
-        estado: 'Estado'
+        id:               'id',
+        id_etapa:         'id_etapa',
+        id_proyecto:      'id_proyecto',
+        nombre:           'nombre',
+        rol:              'rol',
+        superficie:       'superficie',
+        valor_final:      'valor_final',
+        abono:            'abono',
+        fecha_ingreso:    'fecha_ingreso',
+        deslindes:        'deslindes',
+        infraestructura:  'infraestructura',
+        fecha_reserva:    'fecha_reserva',
+        fecha_fin_promesa:'fecha_fin_promesa',
+        fecha_venta:      'fecha_venta',
+        url:              'url',
+        estado:           'estado',
+        coordenadas:      'coordenadas'
       }
     },
     directorio: {
-      sheetName: 'Directorio',
+      tableName: 'Directorio',
       pk: 'id',
       fields: {
-        id: 'Id_director',
-        rut: 'Rut_director',
-        nombre: 'Nombre_director',
-        cargo: 'Cargo',
-        telefono: 'Telefono',
-        email: 'Correo_electronico',
-        fecha_ingreso: 'Fecha_ingreso',
-        estado: 'Estado',
-        auth_reserva: 'Autorizacion_reserva',
-        firma_reserva: 'Firma_reserva',
-        auth_promesa: 'Autorizacion_promesa',
-        firma_promesa: 'Firma_promesa',
-        auth_venta: 'Autorizacion_venta',
-        firma_venta: 'Firma_venta'
+        id:            'id',
+        rut:           'rut',
+        nombre:        'nombre',
+        cargo:         'cargo',
+        telefono:      'telefono',
+        email:         'email',
+        fecha_ingreso: 'fecha_ingreso',
+        estado:        'estado',
+        auth_reserva:  'auth_reserva',
+        firma_reserva: 'firma_reserva',
+        auth_promesa:  'auth_promesa',
+        firma_promesa: 'firma_promesa',
+        auth_venta:    'auth_venta',
+        firma_venta:   'firma_venta'
       }
     },
     negociaciones: {
-      sheetName: 'Negociaciones',
+      tableName: 'Negociaciones',
       pk: 'id',
       fields: {
-        id: 'Id_negociacion',
-        id_propiedad: 'Id_propiedad',
-        id_vendedor: 'Id_vendedor',
-        id_cliente: 'Id_cliente',
-        fecha_negociacion: 'Fecha_negociacion',
-        valor_final: 'Valor_final',
-        pie: 'Pie',
-        cantidad_cuotas: 'Cantidad_cuotas',
-        fecha_vencimiento_cuota: 'Fecha_vencimiento_cuota',
-        tipo_moneda: 'Tipo_moneda',
-        url: 'Url',
-        estado_avance: 'Estado_avance',
-        reajuste: 'Reajuste',
-        id_proceso: 'Id_proceso'
+        id:                      'id',
+        id_propiedad:            'id_propiedad',
+        id_vendedor:             'id_vendedor',
+        id_cliente:              'id_cliente',
+        fecha_negociacion:       'fecha_negociacion',
+        valor_final:             'valor_final',
+        pie:                     'pie',
+        cantidad_cuotas:         'cantidad_cuotas',
+        fecha_vencimiento_cuota: 'fecha_vencimiento_cuota',
+        tipo_moneda:             'tipo_moneda',
+        url:                     'url',
+        estado_avance:           'estado_avance',
+        reajuste:                'reajuste',
+        id_proceso:              'id_proceso',
+        metodo_pago:             'metodo_pago',
+        notas:                   'notas',
+        fecha_promesa:           'fecha_promesa',
+        tipo_operacion:          'tipo_operacion',
+        autorizado_promesa:      'autorizado_promesa'
       }
     },
     cuenta_corriente: {
-      sheetName: 'Cuenta_Corriente',
+      tableName: 'Cuenta_Corriente',
       pk: 'id',
       fields: {
-        id: 'Id_ctacte',
-        id_cliente: 'Id_cliente',
-        id_propiedad: 'Id_propiedad',
-        cuota_nro: 'Cuota_nro',
-        valor_cuota: 'Valor_cuota',
-        fecha_vencimiento: 'Fecha_vencimiento',
-        valor_pagado: 'Valor_pagado',
-        fecha_pago: 'Fecha_pago',
-        url: 'Url',
-        estado_cuota: 'Estado_cuota'
+        id:               'id',
+        id_cliente:       'id_cliente',
+        id_propiedad:     'id_propiedad',
+        cuota_nro:        'cuota_nro',
+        valor_cuota:      'valor_cuota',
+        fecha_vencimiento:'fecha_vencimiento',
+        valor_pagado:     'valor_pagado',
+        fecha_pago:       'fecha_pago',
+        url:              'url',
+        estado_cuota:     'estado_cuota',
+        metodo_pago:      'metodo_pago'
+      }
+    },
+    tramites: {
+      tableName: 'Tramites',
+      pk: 'id',
+      fields: {
+        id:             'id',
+        id_tramite:     'id',
+        Nombre_tramite: 'nombre_tramite',
+        fecha_inicio:   'fecha_inicio',
+        id_propiedad:   'id_propiedad',
+        id_director:    'id_director',
+        Estado_tramite: 'estado_tramite',
+        id_proceso:     'id_proceso'
+      }
+    },
+    documentos: {
+      tableName: 'Documentos',
+      pk: 'id',
+      fields: {
+        id:             'id',
+        id_documento:   'id',
+        nombre:         'nombre',
+        tipo_documento: 'tipo_documento',
+        url_drive:      'url_drive',
+        id_proyecto:    'id_proyecto',
+        id_propiedad:   'id_propiedad',
+        fecha_ingreso:  'fecha_ingreso'
       }
     }
   };
 
-  function _toSheetRecord(tabla, localRec) {
+  function _toSupabaseRecord(tabla, localRec) {
     if (!localRec) return null;
     const map = MAPPING[tabla];
     if (!map) return localRec;
-    const sheetRec = {};
-    Object.entries(map.fields).forEach(([localKey, sheetKey]) => {
+    const dbRec = {};
+    Object.entries(map.fields).forEach(([localKey, fieldKey]) => {
       let val = localRec[localKey];
       if (val === undefined && localKey === 'id') {
         val = localRec.id;
@@ -196,50 +277,118 @@ const APP5T_Sync = (() => {
       if (typeof val === 'object' && val !== null) {
         val = JSON.stringify(val);
       }
-      sheetRec[sheetKey] = val;
+      // Convert empty strings to null to avoid database type syntax/casting errors (date, int, etc.)
+      if (val === '') {
+        val = null;
+      }
+      dbRec[fieldKey] = val;
     });
-    return sheetRec;
+    return dbRec;
   }
 
-  function _toLocalRecord(tabla, sheetRec) {
-    if (!sheetRec) return null;
+  function _findFieldValue(dbRec, fieldKey) {
+    if (!dbRec || !fieldKey) return undefined;
+    
+    // 1. Direct match (case-sensitive)
+    if (dbRec[fieldKey] !== undefined) return dbRec[fieldKey];
+    
+    // 2. Case-insensitive match
+    const lowerKey = fieldKey.toLowerCase();
+    const realKey = Object.keys(dbRec).find(k => k.toLowerCase() === lowerKey);
+    if (realKey) return dbRec[realKey];
+    
+    // 3. Alias fallback (case-insensitive)
+    const aliases = {
+      'id': ['id_cliente', 'id_vendedor', 'id_director', 'id_negociacion', 'id_ctacte', 'id_tramite', 'id_propiedad', 'id_proyecto', 'id_etapa', 'id_documento'],
+      'rut': ['rut_cliente', 'rut_vendedor', 'rut_director'],
+      'nombre': ['nombre_vendedor', 'nombre_director', 'nombre_proyecto', 'nombre_propiedad'],
+      'email': ['correo_electronico'],
+      'id_vendedor': ['vendedor_assigned', 'vendedor_asignado'],
+      'coordenadas': ['coordenada'],
+      'coordenadas_centro': ['coordenadas'],
+      'rol': ['rol_propiedad'],
+      'auth_reserva': ['autorizacion_reserva'],
+      'auth_promesa': ['autorizacion_promesa'],
+      'auth_venta': ['autorizacion_venta']
+    };
+    
+    const keyAliases = aliases[lowerKey] || [];
+    for (let alias of keyAliases) {
+      const foundKey = Object.keys(dbRec).find(k => k.toLowerCase() === alias.toLowerCase());
+      if (foundKey) return dbRec[foundKey];
+    }
+    
+    return undefined;
+  }
+
+  function _toLocalRecord(tabla, dbRec) {
+    if (!dbRec) return null;
     const map = MAPPING[tabla];
-    if (!map) return sheetRec;
+    if (!map) return dbRec;
     const localRec = {};
-    Object.entries(map.fields).forEach(([localKey, sheetKey]) => {
-      let val = sheetRec[sheetKey];
+    Object.entries(map.fields).forEach(([localKey, fieldKey]) => {
+      let val = _findFieldValue(dbRec, fieldKey);
       if (localKey === 'coordenadas_centro' && typeof val === 'string' && val.startsWith('{')) {
         try { val = JSON.parse(val); } catch(e) {}
       }
       localRec[localKey] = val;
     });
-    const pkVal = sheetRec[map.fields.id];
-    if (pkVal !== undefined) {
-      localRec.id = Number(pkVal) || pkVal;
+    if (localRec.id !== undefined) {
+      localRec.id = Number(localRec.id) || localRec.id;
     }
     return localRec;
+  }
+
+  /* ══════════════════════════════════════════════════════
+     PASSWORD HASHING
+     ══════════════════════════════════════════════════════ */
+  async function hashPassword(password) {
+    if (!password) return '';
+    try {
+      const msgBuffer = new TextEncoder().encode(password);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    } catch (e) {
+      console.error('APP5T_Sync: SHA-256 Hashing failed, using fallback:', e);
+      return password;
+    }
   }
 
   /* ══════════════════════════════════════════════════════
      CONFIGURE
      ══════════════════════════════════════════════════════ */
 
-  /**
-   * Set the Apps Script URL and enable sync if valid.
-   * @param {string} url - The deployed Apps Script web app URL
-   */
-  function configure(url) {
-    CONFIG.APPS_SCRIPT_URL = (url || '').trim();
-    CONFIG.ENABLED = !!(CONFIG.APPS_SCRIPT_URL && CONFIG.APPS_SCRIPT_URL.startsWith('http'));
+  function configure(url, key) {
+    if (typeof url === 'object' && url !== null) {
+      CONFIG.SUPABASE_URL = (url.SUPABASE_URL || '').trim();
+      CONFIG.SUPABASE_KEY = (url.SUPABASE_KEY || '').trim();
+    } else {
+      CONFIG.SUPABASE_URL = (url || '').trim();
+      CONFIG.SUPABASE_KEY = (key || '').trim();
+    }
+    CONFIG.ENABLED = !!(CONFIG.SUPABASE_URL && CONFIG.SUPABASE_KEY);
     console.log(`APP5T_Sync: Configured. Enabled=${CONFIG.ENABLED}`);
   }
 
-  /**
-   * Check if sync is configured and enabled.
-   * @returns {boolean}
-   */
   function isConfigured() {
-    return CONFIG.ENABLED && CONFIG.APPS_SCRIPT_URL.length > 0;
+    return CONFIG.ENABLED && CONFIG.SUPABASE_URL.length > 0;
+  }
+
+  function _formatSyncError(e) {
+    let msg = e.message || '';
+    try {
+      const json = JSON.parse(msg);
+      if (json && json.message) {
+        msg = json.message;
+        if (json.details) {
+          msg += ' - ' + json.details;
+        }
+      }
+    } catch (err) {
+      // not JSON, keep original
+    }
+    return msg;
   }
 
   /* ══════════════════════════════════════════════════════
@@ -249,7 +398,16 @@ const APP5T_Sync = (() => {
   function _getPending() {
     try {
       const raw = localStorage.getItem(PENDING_KEY);
-      return raw ? JSON.parse(raw) : [];
+      const queue = raw ? JSON.parse(raw) : [];
+      let changed = false;
+      queue.forEach(item => {
+        if (item && item.tabla === 'tramites' && item.data && item.data.id_director === -1) {
+          item.data.id_director = null;
+          changed = true;
+        }
+      });
+      if (changed) _savePending(queue);
+      return queue;
     } catch (e) {
       return [];
     }
@@ -276,77 +434,133 @@ const APP5T_Sync = (() => {
     const queue = _getPending();
     if (queue.length === 0) return;
 
-    console.log(`APP5T_Sync: Replaying ${queue.length} pending operations...`);
-    const failed = [];
+    return _enqueue(async () => {
+      const currentQueue = _getPending();
+      if (currentQueue.length === 0) return;
 
-    for (const item of queue) {
-      try {
-        const sheetTable = MAPPING[item.tabla]?.sheetName || item.tabla;
-        const mappedData = _toSheetRecord(item.tabla, item.data);
-        
-        await _post({
-          action: item.action,
-          tabla: sheetTable,
-          data: mappedData,
-          id: mappedData ? mappedData[MAPPING[item.tabla]?.fields.id || 'id'] : undefined,
-          usuario: 'Replay APP_5T'
-        });
-      } catch (e) {
-        failed.push(item);
+      console.log(`APP5T_Sync: Replaying ${currentQueue.length} pending operations...`);
+      const failed = [];
+
+      for (const item of currentQueue) {
+        try {
+          const path = item.tabla.toLowerCase();
+          const mappedData = _toSupabaseRecord(item.tabla, item.data);
+          const pkLocalField = MAPPING[item.tabla]?.pk || 'id';
+          const pkSheetField = MAPPING[item.tabla]?.fields[pkLocalField] || 'id';
+          const pkVal = mappedData ? mappedData[pkSheetField] : undefined;
+
+          if (item.action === 'insert') {
+            const resp = await fetch(`${CONFIG.SUPABASE_URL}${path}`, {
+              method: 'POST',
+              headers: {
+                'apikey': CONFIG.SUPABASE_KEY,
+                'Authorization': `Bearer ${CONFIG.SUPABASE_KEY}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify(mappedData)
+            });
+            if (!resp.ok) {
+              const errText = await resp.text();
+              throw new Error(errText || `HTTP ${resp.status}`);
+            }
+          } else if (item.action === 'update') {
+            const resp = await fetch(`${CONFIG.SUPABASE_URL}${path}?${pkSheetField}=eq.${pkVal}`, {
+              method: 'PATCH',
+              headers: {
+                'apikey': CONFIG.SUPABASE_KEY,
+                'Authorization': `Bearer ${CONFIG.SUPABASE_KEY}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify(mappedData)
+            });
+            if (!resp.ok) {
+              const errText = await resp.text();
+              throw new Error(errText || `HTTP ${resp.status}`);
+            }
+          } else if (item.action === 'delete') {
+            const resp = await fetch(`${CONFIG.SUPABASE_URL}${path}?${pkSheetField}=eq.${pkVal}`, {
+              method: 'DELETE',
+              headers: {
+                'apikey': CONFIG.SUPABASE_KEY,
+                'Authorization': `Bearer ${CONFIG.SUPABASE_KEY}`
+              }
+            });
+            if (!resp.ok) {
+              const errText = await resp.text();
+              throw new Error(errText || `HTTP ${resp.status}`);
+            }
+          }
+        } catch (e) {
+          let errorMsg = e.message || '';
+          let isDataError = false;
+          
+          try {
+            const u = 'Sistema (Replay)';
+            const r = (window.APP5T && typeof window.APP5T.getActiveRole === 'function') ? window.APP5T.getActiveRole() : 'Sistema';
+            const fechaAudit = new Date().toLocaleString('es-CL');
+            const detailStr = `Replay error on ${item.tabla} (${item.action}): ${errorMsg} | Data: ` + JSON.stringify(item.data).substring(0, 150);
+            
+            fetch(`${CONFIG.SUPABASE_URL}auditoria`, {
+              method: 'POST',
+              headers: {
+                'apikey': CONFIG.SUPABASE_KEY,
+                'Authorization': `Bearer ${CONFIG.SUPABASE_KEY}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                fecha: fechaAudit,
+                usuario: u,
+                rol: r,
+                tabla: item.tabla,
+                accion: 'SYNC_ERROR',
+                registro_id: String(item.data.id || ''),
+                detalle: detailStr
+              })
+            }).catch(() => {});
+          } catch (auditErr) {}
+          
+          try {
+            const json = JSON.parse(errorMsg);
+            if (json && json.code) {
+              const code = String(json.code);
+              if (code.startsWith('23') || code.startsWith('22') || code.startsWith('42')) {
+                isDataError = true;
+              }
+            }
+          } catch (err) {
+            if (errorMsg.includes('400') || errorMsg.includes('409') || errorMsg.includes('403') ||
+                errorMsg.toLowerCase().includes('duplicate key') || errorMsg.toLowerCase().includes('violates foreign key') ||
+                errorMsg.toLowerCase().includes('invalid input syntax') || errorMsg.toLowerCase().includes('null value violates')) {
+              isDataError = true;
+            }
+          }
+
+          if (isDataError) {
+            if (typeof APP5T_Utils !== 'undefined') {
+              const friendlyMsg = _formatSyncError(e);
+              APP5T_Utils.showToast(`Error de datos al sincronizar ${item.tabla}: ${friendlyMsg} (Transacción descartada por reglas de integridad)`, 'error');
+            }
+            console.error(`APP5T_Sync: Terminal integrity error on ${item.action} on ${item.tabla}. Dropping transaction.`, e.message);
+          } else {
+            failed.push(item);
+            console.error(`APP5T_Sync: Failed to replay ${item.action} on ${item.tabla} (will retry):`, e.message);
+          }
+        }
       }
-    }
 
-    _savePending(failed);
-    if (failed.length === 0) {
-      console.log('APP5T_Sync: All pending operations replayed successfully.');
-    } else {
-      console.warn(`APP5T_Sync: ${failed.length} operations still pending.`);
-    }
-  }
-
-  /* ══════════════════════════════════════════════════════
-     HTTP HELPERS
-     ══════════════════════════════════════════════════════ */
-
-  /**
-   * Perform a GET request to the Apps Script endpoint.
-   * @param {Object} params - Query parameters
-   * @returns {Promise<Object>}
-   */
-  async function _get(params) {
-    const url = new URL(CONFIG.APPS_SCRIPT_URL);
-    Object.entries(params || {}).forEach(([k, v]) => url.searchParams.set(k, v));
-    const resp = await fetch(url.toString(), {
-      method: 'GET',
-      redirect: 'follow'
+      _savePending(failed);
+      if (failed.length === 0) {
+        console.log('APP5T_Sync: All pending operations replayed successfully.');
+      } else {
+        console.warn(`APP5T_Sync: ${failed.length} operations still pending.`);
+      }
     });
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    return resp.json();
-  }
-
-  /**
-   * Perform a POST request to the Apps Script endpoint.
-   * @param {Object} body - JSON body
-   * @returns {Promise<Object>}
-   */
-  async function _post(body) {
-    const resp = await fetch(CONFIG.APPS_SCRIPT_URL, {
-      method: 'POST',
-      redirect: 'follow',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify(body)
-    });
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    return resp.json();
   }
 
   /* ══════════════════════════════════════════════════════
      INIT
      ══════════════════════════════════════════════════════ */
 
-  /**
-   * Initialize sync: ping the endpoint and start interval.
-   */
   async function init() {
     if (!isConfigured()) {
       updateIndicator('offline');
@@ -357,10 +571,25 @@ const APP5T_Sync = (() => {
     updateIndicator('syncing');
 
     try {
-      const result = await _get({ action: 'ping' });
-      if (result && result.status === 'online') {
+      // Ping database by fetching 1 row from permisos table
+      const resp = await fetch(`${CONFIG.SUPABASE_URL}00_gobernanza_permisos?limit=1`, {
+        method: 'GET', cache: 'no-store',
+        headers: {
+          'apikey': CONFIG.SUPABASE_KEY,
+          'Authorization': `Bearer ${CONFIG.SUPABASE_KEY}`
+        }
+      });
+      if (resp.ok) {
         updateIndicator('online');
-        console.log('APP5T_Sync: Endpoint online.', result);
+        console.log('APP5T_Sync: Supabase connected successfully.');
+
+
+        // AUTO-MIGRATION RESET eliminado en v1.7.9
+        // Era el verdadero causante del borrado masivo de datos:
+        // reseteaba todas las propiedades a 'Disponible' en cualquier
+        // navegador/dispositivo nuevo donde no existiera la clave localStorage.
+
+
 
         // Replay any pending operations
         await _replayPending();
@@ -369,11 +598,11 @@ const APP5T_Sync = (() => {
         _startInterval();
       } else {
         updateIndicator('offline');
-        console.warn('APP5T_Sync: Ping returned unexpected response.', result);
+        console.warn('APP5T_Sync: Connection returned status.', resp.status);
       }
     } catch (e) {
       updateIndicator('offline');
-      console.warn('APP5T_Sync: Ping failed.', e.message);
+      console.warn('APP5T_Sync: Connection failed.', e.message);
     }
   }
 
@@ -384,10 +613,12 @@ const APP5T_Sync = (() => {
       _isSyncing = true;
       try {
         await _replayPending();
-        // Optionally fetch new data from server
-        // await fetchAll();  // Uncomment for pull-sync
+        if (isConfigured()) {
+          await pullAll(true);
+        }
         updateIndicator('online');
       } catch (e) {
+        console.warn('APP5T_Sync: Background periodic sync failed.', e.message);
         updateIndicator('pending');
       } finally {
         _isSyncing = false;
@@ -399,18 +630,62 @@ const APP5T_Sync = (() => {
      FETCH ALL
      ══════════════════════════════════════════════════════ */
 
-  /**
-   * Fetch all table data from Google Sheets.
-   * @returns {Promise<Object>} Object with all tables' records
-   */
-  async function fetchAll() {
+  async function fetchAll(isBackground = false) {
     if (!isConfigured()) throw new Error('Sync not configured');
 
-    updateIndicator('syncing');
+    if (!isBackground) {
+      updateIndicator('syncing');
+    }
     try {
-      const result = await _get({ action: 'readAll' });
+      const tables = ['vendedores', 'clientes', 'proyectos', 'etapas', 'propiedades', 'directorio', 'negociaciones', 'cuenta_corriente', 'tramites', 'documentos'];
+      
+      const results = await Promise.all(tables.map(async t => {
+        const tableName = MAPPING[t]?.tableName || t;
+        const path = t.toLowerCase();
+        
+        const pkCol = MAPPING[t]?.fields.id || 'id';
+        const url = `${CONFIG.SUPABASE_URL}${path}?order=${pkCol}.asc`;
+        
+        try {
+          const resp = await fetch(url, {
+            method: 'GET', cache: 'no-store',
+            headers: {
+              'apikey': CONFIG.SUPABASE_KEY,
+              'Authorization': `Bearer ${CONFIG.SUPABASE_KEY}`,
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache',
+              'Expires': '0'
+            }
+          });
+          
+          if (!resp.ok) {
+            if (t === 'documentos' && (resp.status === 404 || resp.status === 400)) {
+              console.warn(`APP5T_Sync: Table '${tableName}' does not exist on Supabase yet. Skipping sync for this table.`);
+              const local = (typeof APP5T_DB !== 'undefined' ? APP5T_DB.getAll('documentos') : null) || [];
+              return { tableName, data: local };
+            }
+            throw new Error(`Fetch failed for ${path}: HTTP ${resp.status}`);
+          }
+          
+          const data = await resp.json();
+          return { tableName, data };
+        } catch (err) {
+          if (t === 'documentos') {
+            console.warn(`APP5T_Sync: Table '${tableName}' sync skipped:`, err.message);
+            const local = APP5T_DB.getAll('documentos') || [];
+            return { tableName, data: local };
+          }
+          throw err;
+        }
+      }));
+
       updateIndicator('online');
-      return result;
+
+      const payload = {};
+      results.forEach(res => {
+        payload[res.tableName] = res.data;
+      });
+      return payload;
     } catch (e) {
       updateIndicator('offline');
       _addPending('_system', 'fetchAll', {});
@@ -422,48 +697,210 @@ const APP5T_Sync = (() => {
      PUSH RECORD
      ══════════════════════════════════════════════════════ */
 
-  /**
-   * Push a single record change to Google Sheets.
-   * @param {string} tabla - Table name
-   * @param {string} action - 'insert' | 'update' | 'delete'
-   * @param {Object} data - Record data
-   * @param {string} usuario - User performing the action
-   */
+  function _scheduleBackgroundPull() {
+    if (_pullTimeoutId) {
+      clearTimeout(_pullTimeoutId);
+    }
+    _pullTimeoutId = setTimeout(async () => {
+      _pullTimeoutId = null;
+      try {
+        await pullAll(true);
+      } catch (err) {
+        console.error('APP5T_Sync: Scheduled background pull failed.', err);
+      }
+    }, 1000);
+  }
+
   async function pushRecord(tabla, action, data, usuario) {
-    const sheetTable = MAPPING[tabla]?.sheetName || tabla;
-    const mappedData = _toSheetRecord(tabla, data);
-
-    if (!isConfigured()) {
-      _addPending(tabla, action, data);
-      return;
-    }
-
-    updateIndicator('syncing');
-    try {
-      const body = {
+    const id = data.id;
+    const key = id !== undefined ? (tabla + '_' + id) : null;
+    
+    if (key) {
+      _inFlight[key] = {
+        tabla: tabla,
         action: action,
-        tabla: sheetTable,
-        data: mappedData,
-        id: mappedData ? mappedData[MAPPING[tabla]?.fields.id || 'id'] : undefined,
-        usuario: usuario || 'Consola APP_5T'
+        data: data
       };
-      const result = await _post(body);
-      updateIndicator('online');
-      return result;
-    } catch (e) {
-      _addPending(tabla, action, data);
-      updateIndicator('pending');
-      console.warn(`APP5T_Sync: pushRecord failed for ${tabla}/${action}.`, e.message);
     }
+
+    return _enqueue(async () => {
+      const path = tabla.toLowerCase();
+      const mappedData = _toSupabaseRecord(tabla, data);
+
+      if (!isConfigured()) {
+        _addPending(tabla, action, data);
+        if (key) delete _inFlight[key];
+        return;
+      }
+
+      let postSucceeded = false;
+      updateIndicator('syncing');
+      try {
+        let result;
+        const pkLocalField = MAPPING[tabla]?.pk || 'id';
+        const pkSheetField = MAPPING[tabla]?.fields[pkLocalField] || 'id';
+        const pkVal = mappedData ? mappedData[pkSheetField] : undefined;
+
+        if (action === 'insert') {
+          const resp = await fetch(`${CONFIG.SUPABASE_URL}${path}`, {
+            method: 'POST',
+            headers: {
+              'apikey': CONFIG.SUPABASE_KEY,
+              'Authorization': `Bearer ${CONFIG.SUPABASE_KEY}`,
+              'Content-Type': 'application/json',
+              'Prefer': 'return=representation'
+            },
+            body: JSON.stringify(mappedData)
+          });
+          if (!resp.ok) {
+            const errText = await resp.text();
+            throw new Error(errText || `HTTP ${resp.status}`);
+          }
+          const insertedRows = await resp.json();
+          result = insertedRows && insertedRows.length ? insertedRows[0] : { success: true };
+        } else if (action === 'update') {
+          const resp = await fetch(`${CONFIG.SUPABASE_URL}${path}?${pkSheetField}=eq.${pkVal}`, {
+            method: 'PATCH',
+            headers: {
+              'apikey': CONFIG.SUPABASE_KEY,
+              'Authorization': `Bearer ${CONFIG.SUPABASE_KEY}`,
+              'Content-Type': 'application/json',
+              'Prefer': 'return=representation'
+            },
+            body: JSON.stringify(mappedData)
+          });
+          if (!resp.ok) {
+            const errText = await resp.text();
+            throw new Error(errText || `HTTP ${resp.status}`);
+          }
+          const updatedRows = await resp.json();
+          result = updatedRows && updatedRows.length ? updatedRows[0] : { success: true };
+        } else if (action === 'delete') {
+          const resp = await fetch(`${CONFIG.SUPABASE_URL}${path}?${pkSheetField}=eq.${pkVal}`, {
+            method: 'DELETE',
+            headers: {
+              'apikey': CONFIG.SUPABASE_KEY,
+              'Authorization': `Bearer ${CONFIG.SUPABASE_KEY}`
+            }
+          });
+          if (!resp.ok) {
+            const errText = await resp.text();
+            throw new Error(errText || `HTTP ${resp.status}`);
+          }
+          result = { success: true };
+        }
+
+        // Audit log (non-blocking POST to auditoria table)
+        const u = usuario || 'Consola APP_5T';
+        const r = (window.APP5T && typeof window.APP5T.getActiveRole === 'function') ? window.APP5T.getActiveRole() : 'Sistema';
+        const fechaAudit = new Date().toLocaleString('es-CL');
+        const detailStr = `Record ${action} on ${tabla}: ${JSON.stringify(data).substring(0, 300)}`;
+        
+        fetch(`${CONFIG.SUPABASE_URL}auditoria`, {
+          method: 'POST',
+          headers: {
+            'apikey': CONFIG.SUPABASE_KEY,
+            'Authorization': `Bearer ${CONFIG.SUPABASE_KEY}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            fecha: fechaAudit,
+            usuario: u,
+            rol: r,
+            tabla: tabla,
+            accion: action.toUpperCase(),
+            registro_id: String(id || ''),
+            detalle: detailStr
+          })
+        }).catch(e => console.error('APP5T_Sync: Failed to log audit to Supabase.', e));
+
+        postSucceeded = true;
+        updateIndicator('online');
+        
+        // Auto-trigger a scheduled background pull after pushing to ensure local copy matches server state.
+        _scheduleBackgroundPull();
+
+        return result;
+      } catch (e) {
+        if (!postSucceeded) {
+          let errorMsg = e.message || '';
+          const isMissingTable = tabla === 'documentos' && (errorMsg.includes('404') || errorMsg.includes('400') || errorMsg.toLowerCase().includes('relation "documentos" does not exist'));
+          
+          if (isMissingTable) {
+            console.warn(`APP5T_Sync: pushRecord skipped for 'documentos' (table doesn't exist in Supabase).`);
+          } else {
+            _addPending(tabla, action, data);
+            updateIndicator('pending');
+
+            // Log de error de sincronización a Supabase
+            try {
+              const u = usuario || 'Consola APP_5T';
+              const r = (window.APP5T && typeof window.APP5T.getActiveRole === 'function') ? window.APP5T.getActiveRole() : 'Sistema';
+              const fechaAudit = new Date().toLocaleString('es-CL');
+              const detailStr = `Sync error on ${tabla} (${action}): ${errorMsg} | Data: ` + JSON.stringify(data).substring(0, 150);
+              
+              fetch(`${CONFIG.SUPABASE_URL}auditoria`, {
+                method: 'POST',
+                headers: {
+                  'apikey': CONFIG.SUPABASE_KEY,
+                  'Authorization': `Bearer ${CONFIG.SUPABASE_KEY}`,
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  fecha: fechaAudit,
+                  usuario: u,
+                  rol: r,
+                  tabla: tabla,
+                  accion: 'SYNC_ERROR',
+                  registro_id: String(data.id || ''),
+                  detalle: detailStr
+                })
+              }).catch(() => {});
+            } catch (auditErr) {}
+
+            let isDataError = false;
+
+            try {
+              const json = JSON.parse(errorMsg);
+              if (json && json.code) {
+                const code = String(json.code);
+                if (code.startsWith('23') || code.startsWith('22') || code.startsWith('42')) {
+                  isDataError = true;
+                }
+              }
+            } catch (err) {
+              if (errorMsg.includes('400') || errorMsg.includes('409') || errorMsg.includes('403') ||
+                  errorMsg.toLowerCase().includes('duplicate key') || errorMsg.toLowerCase().includes('violates foreign key') ||
+                  errorMsg.toLowerCase().includes('invalid input syntax') || errorMsg.toLowerCase().includes('null value violates')) {
+                isDataError = true;
+              }
+            }
+
+            if (isDataError && typeof APP5T_Utils !== 'undefined') {
+              const friendlyMsg = _formatSyncError(e);
+              APP5T_Utils.showToast(`Error de datos en ${tabla}: ${friendlyMsg}`, 'error');
+            }
+          }
+        }
+        console.warn(`APP5T_Sync: pushRecord failed for ${tabla}/${action}.`, e.message);
+        throw e;
+      } finally {
+        if (key) {
+          // Delay removal from _inFlight by 8 seconds to prevent race conditions during server indexing lag
+          setTimeout(() => {
+            delete _inFlight[key];
+          }, 8000);
+        }
+      }
+    });
+
+    return _pushQueuePromise;
   }
 
   /* ══════════════════════════════════════════════════════
      SYNC ALL (BATCH)
      ══════════════════════════════════════════════════════ */
 
-  /**
-   * Push all localStorage tables to Google Sheets in a single batch.
-   */
   async function syncAll() {
     if (!isConfigured()) {
       APP5T_Utils.showToast('Sincronización no configurada', 'warning');
@@ -472,28 +909,90 @@ const APP5T_Sync = (() => {
 
     updateIndicator('syncing');
 
+    // Correct delete order (child tables first)
+    const deleteOrder = [
+      'cuenta_corriente',
+      'negociaciones',
+      'tramites',
+      'propiedades',
+      'etapas',
+      'clientes',
+      'proyectos',
+      'vendedores',
+      'directorio',
+      'documentos'
+    ];
+
+    // Correct insert order (parent tables first)
+    const insertOrder = [
+      'vendedores',
+      'directorio',
+      'proyectos',
+      'clientes',
+      'etapas',
+      'propiedades',
+      'negociaciones',
+      'cuenta_corriente',
+      'tramites',
+      'documentos'
+    ];
+
     try {
-      // Build object with all tables from localStorage
-      const tables = ['vendedores', 'clientes', 'proyectos', 'etapas', 'propiedades', 'directorio', 'negociaciones', 'cuenta_corriente'];
-      const datos = {};
-      tables.forEach(t => {
+      // 1. Delete all tables sequentially in reverse dependency order
+      for (const t of deleteOrder) {
+        const path = t.toLowerCase();
+        try {
+          const delResp = await fetch(`${CONFIG.SUPABASE_URL}${path}?id=neq.-1`, {
+            method: 'DELETE',
+            headers: {
+              'apikey': CONFIG.SUPABASE_KEY,
+              'Authorization': `Bearer ${CONFIG.SUPABASE_KEY}`
+            }
+          });
+          if (!delResp.ok) {
+            if (t === 'documentos' && (delResp.status === 404 || delResp.status === 400)) {
+              console.warn(`APP5T_Sync: Bulk delete skipped for 'documentos'.`);
+              continue;
+            }
+            throw new Error(`Bulk delete failed for ${t}: HTTP ${delResp.status}`);
+          }
+        } catch (err) {
+          if (t === 'documentos') continue;
+          throw err;
+        }
+      }
+
+      // 2. Insert all tables sequentially in parent-to-child order
+      for (const t of insertOrder) {
         const records = APP5T_DB.getAll(t) || [];
         if (records && records.length) {
-          const sheetTable = MAPPING[t]?.sheetName || t;
-          datos[sheetTable] = records.map(rec => _toSheetRecord(t, rec));
+          const path = t.toLowerCase();
+          const mappedRows = records.map(rec => _toSupabaseRecord(t, rec));
+          
+          try {
+            const resp = await fetch(`${CONFIG.SUPABASE_URL}${path}`, {
+              method: 'POST',
+              headers: {
+                'apikey': CONFIG.SUPABASE_KEY,
+                'Authorization': `Bearer ${CONFIG.SUPABASE_KEY}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify(mappedRows)
+            });
+            if (!resp.ok) throw new Error(`Bulk insert failed for ${t}: HTTP ${resp.status}`);
+          } catch (err) {
+            if (t === 'documentos') {
+              console.warn(`APP5T_Sync: Skipping syncAll push for 'documentos':`, err.message);
+              continue;
+            }
+            throw err;
+          }
         }
-      });
-
-      const result = await _post({
-        action: 'syncall',
-        datos: datos,
-        usuario: 'Consola APP_5T'
-      });
+      }
 
       updateIndicator('online');
       APP5T_Utils.showToast('Sincronización completa', 'success');
-      console.log('APP5T_Sync: syncAll completed.', result);
-      return result;
+      return { success: true };
     } catch (e) {
       updateIndicator('offline');
       APP5T_Utils.showToast('Error en sincronización masiva', 'error');
@@ -512,13 +1011,8 @@ const APP5T_Sync = (() => {
     offline: { text: 'Sin conexión',   class: 'offline', icon: 'fa-circle-xmark' }
   };
 
-  /**
-   * Update the sync status indicator in the UI.
-   * @param {string} status - 'online' | 'syncing' | 'pending' | 'offline'
-   */
   function updateIndicator(status) {
     const info = STATUS_MAP[status] || STATUS_MAP.offline;
-
     const dot = document.getElementById('sync-dot');
     if (dot) {
       dot.className = `sync-dot ${info.class}`;
@@ -534,9 +1028,6 @@ const APP5T_Sync = (() => {
      STOP SYNC
      ══════════════════════════════════════════════════════ */
 
-  /**
-   * Stop the periodic sync interval.
-   */
   function stopSync() {
     if (_intervalId) {
       clearInterval(_intervalId);
@@ -546,9 +1037,771 @@ const APP5T_Sync = (() => {
   }
 
   /* ══════════════════════════════════════════════════════
-     PUBLIC API
+     PUBLIC API AND FALLBACKS
      ══════════════════════════════════════════════════════ */
-  const api = { configure, isConfigured, init, fetchAll, pushRecord, syncAll, stopSync, updateIndicator };
+
+  function _fromSupabaseRecord(tabla, dbRec) {
+    if (!dbRec) return null;
+    const map = MAPPING[tabla];
+    if (!map) return dbRec;
+    const ID_FIELDS = new Set(['id', 'id_proyecto', 'id_etapa', 'id_propiedad', 'id_vendedor', 'id_cliente', 'cuota_nro', 'id_tramite', 'id_director', 'id_documento']);
+    const NUM_FIELDS = new Set(['valor_final', 'pie', 'cantidad_cuotas', 'superficie', 'abono', 'valor_cuota', 'valor_pagado', 'nro_etapas', 'nro_lotes']);
+
+    const localRec = {};
+    Object.entries(map.fields).forEach(([localKey, fieldKey]) => {
+      let val = _findFieldValue(dbRec, fieldKey);
+
+      // ── FIX: preserve null for missing FK values; only 'id' (PK) defaults to '' ──
+      if (val === undefined || val === null || val === '') {
+        if (ID_FIELDS.has(localKey) && localKey !== 'id') {
+          // Foreign key: use null so Number(null)===0 doesn't corrupt comparisons
+          localRec[localKey] = null;
+        } else {
+          localRec[localKey] = '';
+        }
+        return;
+      }
+      
+      if (localKey === 'coordenadas_centro' && typeof val === 'string' && val.trim().startsWith('{')) {
+        try { val = JSON.parse(val); } catch(e) {}
+      }
+      if (localKey === 'coordenadas' && typeof val === 'string' && val.trim().startsWith('{')) {
+        try { val = JSON.parse(val); } catch(e) {}
+      }
+
+      if (ID_FIELDS.has(localKey)) {
+        const num = parseInt(val, 10);
+        if (!isNaN(num)) val = num;
+      }
+      if (NUM_FIELDS.has(localKey)) {
+        const num = parseFloat(val);
+        if (!isNaN(num)) val = num;
+      }
+
+      localRec[localKey] = val;
+    });
+
+    // Corrección automática: si es propiedad, forzar que id_etapa coincida con id_proyecto (dado que hay 1 etapa por proyecto)
+    // para subsanar que en base de datos remota todas las propiedades tienen id_etapa = 1 por defecto.
+    if (tabla === 'propiedades') {
+      if (localRec.id_proyecto && (!localRec.id_etapa || Number(localRec.id_etapa) !== Number(localRec.id_proyecto))) {
+        localRec.id_etapa = Number(localRec.id_proyecto);
+      }
+    }
+
+    return localRec;
+  }
+
+  function _mergeCoordinatesFromGeoJSON(properties) {
+    const geoSources = [
+      { varName: "json_copihue_lotes",  idProy: 1 },
+      { varName: "json_brisas_lotes",   idProy: 2 },
+      { varName: "json_encinos_lotes",  idProy: 3 },
+      { varName: "json_naranjos_lotes", idProy: 4 }
+    ];
+
+    const coordsMap = {};
+
+    geoSources.forEach(src => {
+      const geojson = window[src.varName];
+      if (geojson && geojson.features) {
+        geojson.features.forEach((feat, idx) => {
+          const props = feat.properties || {};
+          const name = props.Lote || props.nombre || ("Lote " + (idx + 1));
+          const normalizedName = String(name).trim().toLowerCase();
+          const key = src.idProy + "_" + normalizedName;
+          coordsMap[key] = feat.geometry || null;
+        });
+      }
+    });
+
+    let stages = [];
+    try {
+      const rawStages = localStorage.getItem('app5t_etapas');
+      stages = rawStages ? JSON.parse(rawStages) : [];
+    } catch (e) {}
+
+    return properties.map(prop => {
+      let idProy = prop.id_proyecto;
+      if (!idProy && prop.id_etapa) {
+        if (stages.length > 0) {
+          const stage = stages.find(s => s.id === prop.id_etapa);
+          if (stage) {
+            idProy = stage.id_proyecto;
+          }
+        }
+        if (!idProy) {
+          if (prop.id_etapa === 1) idProy = 1;
+          else if (prop.id_etapa === 2) idProy = 2;
+          else if (prop.id_etapa === 3) idProy = 3;
+          else if (prop.id_etapa === 4) idProy = 4;
+        }
+      }
+
+      const normalizedName = String(prop.nombre || "").trim().toLowerCase();
+      const key = (idProy || "") + "_" + normalizedName;
+      if (coordsMap[key]) {
+        prop.coordenadas = coordsMap[key];
+      }
+      return prop;
+    });
+  }
+
+  function _getMergedLocalRecords(t, remoteRecords) {
+    let localRecords = (remoteRecords || []).map(rec => _fromSupabaseRecord(t, rec)).filter(Boolean);
+    if (t === 'propiedades') {
+      localRecords = _mergeCoordinatesFromGeoJSON(localRecords);
+    }
+
+    const pending = _getPending().filter(item => item && item.tabla === t);
+    const inFlight = Object.values(_inFlight).filter(item => item && item.tabla === t);
+    const activeChanges = [...pending, ...inFlight];
+
+    if (activeChanges.length === 0) {
+      return localRecords;
+    }
+
+    let currentLocal = [];
+    try {
+      const rawLocal = localStorage.getItem('app5t_' + t);
+      currentLocal = rawLocal ? JSON.parse(rawLocal) : [];
+      if (!Array.isArray(currentLocal)) {
+        currentLocal = [];
+      }
+    } catch (e) {
+      currentLocal = [];
+    }
+
+    activeChanges.forEach(item => {
+      if (!item || !item.data) return;
+      const itemId = item.data.id;
+      if (itemId === undefined || itemId === null) return;
+      
+      if (item.action === 'insert') {
+        const exists = localRecords.some(r => r && Number(r.id) === Number(itemId));
+        if (!exists) {
+          const localItem = currentLocal.find(r => r && Number(r.id) === Number(itemId));
+          if (localItem) {
+            localRecords.push(localItem);
+          } else {
+            localRecords.push(item.data);
+          }
+        }
+      } else if (item.action === 'update') {
+        const idx = localRecords.findIndex(r => r && Number(r.id) === Number(itemId));
+        if (idx !== -1) {
+          localRecords[idx] = Object.assign({}, localRecords[idx], item.data);
+        } else {
+          const localItem = currentLocal.find(r => r && Number(r.id) === Number(itemId));
+          if (localItem) {
+            localRecords.push(localItem);
+          }
+        }
+      } else if (item.action === 'delete') {
+        localRecords = localRecords.filter(r => r && Number(r.id) !== Number(itemId));
+      }
+    });
+
+    return localRecords.filter(Boolean);
+  }
+
+  /* ══════════════════════════════════════════════════════
+     OFFLINE MOCK FALLBACKS (For local testing/dev)
+     ══════════════════════════════════════════════════════ */
+
+  function _mockLoginLocal(rut, password) {
+    const cleanRut = String(rut).replace(/[^0-9kK]/g, '').toUpperCase();
+    const localUsers = _getMockUsersLocal();
+    const user = localUsers.find(u => String(u.RUT_Usuario).replace(/[^0-9kK]/g, '').toUpperCase() === cleanRut);
+    
+    if (!user) {
+      return { success: false, mensaje: 'RUT de usuario no registrado (Offline Mock)' };
+    }
+    if (user.Estado !== 'Activo') {
+      return { success: false, mensaje: 'El usuario se encuentra Inactivo en el sistema.' };
+    }
+    
+    let expectedPass = '';
+    if (cleanRut === '111111111') expectedPass = 'vendedor123';
+    else if (cleanRut === '222222222') expectedPass = 'gerente123';
+    else if (cleanRut === '333333333') expectedPass = 'admin123';
+    else {
+      let passwords = {};
+      try {
+        passwords = JSON.parse(localStorage.getItem('app5t_mock_passwords')) || {};
+      } catch(e) {}
+      expectedPass = passwords[cleanRut] || '5tierras123';
+    }
+    
+    if (expectedPass !== password) {
+      return { success: false, mensaje: 'Contraseña incorrecta (Offline Mock)' };
+    }
+    
+    const mockPerms = [
+      { ID_Permiso: 1, Componente_Modulo: 'Buscador_Mapa', Descripcion: 'Ver y filtrar el mapa satelital GIS de lotes', Acceso_Vendedor: true, Acceso_Gerencia: true, Acceso_Administracion: true },
+      { ID_Permiso: 2, Componente_Modulo: 'Formulario_Reserva', Descripcion: 'Formulario de reserva y compra de parcelas', Acceso_Vendedor: true, Acceso_Gerencia: true, Acceso_Administracion: true },
+      { ID_Permiso: 3, Componente_Modulo: 'Bandeja_Aprobaciones', Descripcion: 'Aprobación y rechazo de reservas de lotes', Acceso_Vendedor: false, Acceso_Gerencia: true, Acceso_Administracion: true },
+      { ID_Permiso: 4, Componente_Modulo: 'Carga_PDF_Promesa', Descripcion: 'Subir documentos firmados de promesas de compraventa', Acceso_Vendedor: false, Acceso_Gerencia: false, Acceso_Administracion: true },
+      { ID_Permiso: 5, Componente_Modulo: 'Dashboard_Financiero', Descripcion: 'Panel de métricas comerciales y gráficos financieros', Acceso_Vendedor: false, Acceso_Gerencia: true, Acceso_Administracion: true },
+      { ID_Permiso: 6, Componente_Modulo: 'Mis_Leads', Descripcion: 'Listado y seguimiento de prospectos asignados', Acceso_Vendedor: true, Acceso_Gerencia: false, Acceso_Administracion: true },
+      { ID_Permiso: 7, Componente_Modulo: 'Control_Precios', Descripcion: 'Ver y editar precios de lista de las parcelas', Acceso_Vendedor: false, Acceso_Gerencia: true, Acceso_Administracion: true },
+      { ID_Permiso: 8, Componente_Modulo: 'Mesa_Documental', Descripcion: 'Firma de promesas y escrituración de lotes', Acceso_Vendedor: false, Acceso_Gerencia: false, Acceso_Administracion: true },
+      { ID_Permiso: 9, Componente_Modulo: 'Cuenta_Corriente', Descripcion: 'Gestión y pago de cuotas de financiamiento', Acceso_Vendedor: false, Acceso_Gerencia: false, Acceso_Administracion: true },
+      { ID_Permiso: 10, Componente_Modulo: 'Carga_Datos', Descripcion: 'Administración de entidades base (Vendedores, Proyectos, Etapas)', Acceso_Vendedor: false, Acceso_Gerencia: false, Acceso_Administracion: true },
+      { ID_Permiso: 11, Componente_Modulo: 'Inventario', Descripcion: 'Consulta de listado de inventario general', Acceso_Vendedor: false, Acceso_Gerencia: true, Acceso_Administracion: true },
+      { ID_Permiso: 12, Componente_Modulo: 'Auditoria', Descripcion: 'Registro detallado de acciones ejecutadas en el sistema', Acceso_Vendedor: false, Acceso_Gerencia: false, Acceso_Administracion: true },
+      { ID_Permiso: 13, Componente_Modulo: 'Configuracion_Sistema', Descripcion: 'Configuración de gobernanza, permisos y usuarios', Acceso_Vendedor: false, Acceso_Gerencia: false, Acceso_Administracion: true }
+    ];
+    
+    return {
+      success: true,
+      user: {
+        rut: user.RUT_Usuario,
+        nombre: user.Nombre,
+        rol: user.Rol
+      },
+      permisos: mockPerms
+    };
+  }
+
+  function _getMockUsersLocal() {
+    let mockUsers = localStorage.getItem('app5t_mock_users');
+    if (!mockUsers) {
+      mockUsers = [
+        { RUT_Usuario: '11.111.111-1', Nombre: 'Manuel Matus', Rol: 'Vendedor', Estado: 'Activo' },
+        { RUT_Usuario: '22.222.222-2', Nombre: 'DANIEL GAJARDO PEREIRA', Rol: 'Gerencia', Estado: 'Activo' },
+        { RUT_Usuario: '33.333.333-3', Nombre: 'Carmen Gloria Almendras', Rol: 'Administracion', Estado: 'Activo' }
+      ];
+      localStorage.setItem('app5t_mock_users', JSON.stringify(mockUsers));
+    } else {
+      mockUsers = JSON.parse(mockUsers);
+    }
+    return mockUsers;
+  }
+
+  function _updateMockUserLocal(userData) {
+    const list = _getMockUsersLocal();
+    const cleanRut = String(userData.RUT_Usuario).replace(/[^0-9kK]/g, '').toUpperCase();
+    const idx = list.findIndex(u => String(u.RUT_Usuario).replace(/[^0-9kK]/g, '').toUpperCase() === cleanRut);
+    
+    if (idx !== -1) {
+      list[idx].Nombre = userData.Nombre;
+      list[idx].Rol = userData.Rol;
+      list[idx].Estado = userData.Estado;
+    } else {
+      list.push({
+        RUT_Usuario: userData.RUT_Usuario,
+        Nombre: userData.Nombre,
+        Rol: userData.Rol,
+        Estado: userData.Estado || 'Activo'
+      });
+    }
+    localStorage.setItem('app5t_mock_users', JSON.stringify(list));
+
+    if (userData.Contraseña && userData.Contraseña.trim() !== '' && userData.Contraseña !== '••••••••' && userData.Contraseña !== '●●●●●●') {
+      let passwords = {};
+      try {
+        passwords = JSON.parse(localStorage.getItem('app5t_mock_passwords')) || {};
+      } catch(e) {}
+      passwords[cleanRut] = userData.Contraseña.trim();
+      localStorage.setItem('app5t_mock_passwords', JSON.stringify(passwords));
+    }
+
+    return { success: true };
+  }
+
+  function _deleteMockUserLocal(rut) {
+    const list = _getMockUsersLocal();
+    const cleanRut = String(rut).replace(/[^0-9kK]/g, '').toUpperCase();
+    const filtered = list.filter(u => String(u.RUT_Usuario).replace(/[^0-9kK]/g, '').toUpperCase() !== cleanRut);
+    localStorage.setItem('app5t_mock_users', JSON.stringify(filtered));
+
+    let passwords = {};
+    try {
+      passwords = JSON.parse(localStorage.getItem('app5t_mock_passwords')) || {};
+    } catch(e) {}
+    delete passwords[cleanRut];
+    localStorage.setItem('app5t_mock_passwords', JSON.stringify(passwords));
+
+    return { success: true };
+  }
+
+  /* ══════════════════════════════════════════════════════
+     SUPABASE ENDPOINTS
+     ══════════════════════════════════════════════════════ */
+
+  async function login(rut, password) {
+    if (!isConfigured()) {
+      console.warn('APP5T_Sync: Sincronización no configurada. Ejecutando mock de desarrollo local.');
+      return _mockLoginLocal(rut, password);
+    }
+    try {
+      let cleanRut = String(rut).replace(/[^0-9kK]/g, '').toUpperCase();
+      
+      let resp = await fetch(`${CONFIG.SUPABASE_URL}00_usuarios?rut_usuario=eq.${cleanRut}`, {
+        method: 'GET', cache: 'no-store',
+        headers: {
+          'apikey': CONFIG.SUPABASE_KEY,
+          'Authorization': `Bearer ${CONFIG.SUPABASE_KEY}`
+        }
+      });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      let users = await resp.json();
+      
+      // Robust fallback: if clean RUT is not found, try searching with standard dots/dashes formatting
+      if ((!users || users.length === 0) && typeof APP5T_Utils !== 'undefined') {
+        const formatted = APP5T_Utils.formatRUT(rut);
+        if (formatted && formatted !== cleanRut) {
+          const respFallback = await fetch(`${CONFIG.SUPABASE_URL}00_usuarios?rut_usuario=eq.${formatted}`, {
+            method: 'GET', cache: 'no-store',
+            headers: {
+              'apikey': CONFIG.SUPABASE_KEY,
+              'Authorization': `Bearer ${CONFIG.SUPABASE_KEY}`
+            }
+          });
+          if (respFallback.ok) {
+            const fallbackUsers = await respFallback.json();
+            if (fallbackUsers && fallbackUsers.length > 0) {
+              users = fallbackUsers;
+            }
+          }
+        }
+      }
+      
+      if (!users || users.length === 0) {
+        return { success: false, mensaje: 'RUT de usuario no registrado' };
+      }
+      
+      const user = users[0];
+      if (user.estado !== 'Activo') {
+        return { success: false, mensaje: 'El usuario se encuentra Inactivo en el sistema.' };
+      }
+      
+      const localHash = await hashPassword(password);
+      if (user.contrasena_hash !== localHash) {
+        return { success: false, mensaje: 'Contraseña incorrecta' };
+      }
+      
+      // Fetch permissions
+      const permResp = await fetch(`${CONFIG.SUPABASE_URL}00_gobernanza_permisos?order=id_permiso.asc`, {
+        method: 'GET', cache: 'no-store',
+        headers: {
+          'apikey': CONFIG.SUPABASE_KEY,
+          'Authorization': `Bearer ${CONFIG.SUPABASE_KEY}`
+        }
+      });
+      if (!permResp.ok) throw new Error(`HTTP ${permResp.status}`);
+      const rawPerms = await permResp.json();
+      
+      const permissions = rawPerms.map(p => ({
+        ID_Permiso: p.id_permiso,
+        Componente_Modulo: p.componente_modulo,
+        Descripcion: p.descripcion,
+        Acceso_Vendedor: p.acceso_vendedor,
+        Acceso_Gerencia: p.acceso_gerencia,
+        Acceso_Administracion: p.acceso_administracion
+      }));
+      
+      return {
+        success: true,
+        user: {
+          rut: user.rut_usuario,
+          nombre: user.nombre,
+          rol: user.rol
+        },
+        permisos: permissions
+      };
+    } catch (e) {
+      console.warn('Error en login API cloud (fallo de conexión), ejecutando mock local:', e);
+      return _mockLoginLocal(rut, password);
+    }
+  }
+
+  async function updatePermissionsMatrix(permisos, usuario) {
+    if (!isConfigured()) {
+      console.warn('APP5T_Sync: Sincronización no configurada. Guardando permisos localmente.');
+      sessionStorage.setItem('app5t_permisos', JSON.stringify(permisos));
+      return { success: true };
+    }
+    try {
+      // 1. Delete all permissions
+      await fetch(`${CONFIG.SUPABASE_URL}00_gobernanza_permisos`, {
+        method: 'DELETE',
+        headers: {
+          'apikey': CONFIG.SUPABASE_KEY,
+          'Authorization': `Bearer ${CONFIG.SUPABASE_KEY}`
+        }
+      });
+      
+      // 2. Insert new rows in bulk
+      const rows = permisos.map(m => ({
+        id_permiso: Number(m.ID_Permiso) || m.ID_Permiso,
+        componente_modulo: m.Componente_Modulo,
+        descripcion: m.Descripcion,
+        acceso_vendedor: m.Acceso_Vendedor === true || String(m.Acceso_Vendedor).toUpperCase() === 'TRUE',
+        acceso_gerencia: m.Acceso_Gerencia === true || String(m.Acceso_Gerencia).toUpperCase() === 'TRUE',
+        acceso_administracion: m.Acceso_Administracion === true || String(m.Acceso_Administracion).toUpperCase() === 'TRUE'
+      }));
+
+      const resp = await fetch(`${CONFIG.SUPABASE_URL}00_gobernanza_permisos`, {
+        method: 'POST',
+        headers: {
+          'apikey': CONFIG.SUPABASE_KEY,
+          'Authorization': `Bearer ${CONFIG.SUPABASE_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(rows)
+      });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      
+      return { success: true };
+    } catch (e) {
+      console.warn('Error en API cloud para guardar permisos, ejecutando local:', e);
+      sessionStorage.setItem('app5t_permisos', JSON.stringify(permisos));
+      return { success: true };
+    }
+  }
+
+  async function getUsersList(rol) {
+    if (!isConfigured()) {
+      return { success: true, usuarios: _getMockUsersLocal() };
+    }
+    try {
+      const resp = await fetch(`${CONFIG.SUPABASE_URL}00_usuarios?order=rut_usuario.asc`, {
+        method: 'GET', cache: 'no-store',
+        headers: {
+          'apikey': CONFIG.SUPABASE_KEY,
+          'Authorization': `Bearer ${CONFIG.SUPABASE_KEY}`
+        }
+      });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const rawUsers = await resp.json();
+      
+      const users = rawUsers.map(u => ({
+        RUT_Usuario: u.rut_usuario,
+        Nombre: u.nombre,
+        Contraseña_Hash: '●●●●●●',
+        Rol: u.rol,
+        Estado: u.estado
+      }));
+      
+      return { success: true, usuarios: users };
+    } catch (e) {
+      console.warn('Error en API cloud para obtener usuarios, ejecutando local:', e);
+      return { success: true, usuarios: _getMockUsersLocal() };
+    }
+  }
+
+  async function updateUserRecord(data, rol, usuario) {
+    if (!isConfigured()) {
+      return _updateMockUserLocal(data);
+    }
+    try {
+      const cleanRut = String(data.RUT_Usuario).replace(/[^0-9kK]/g, '').toUpperCase();
+      
+      // Check if user exists
+      const existResp = await fetch(`${CONFIG.SUPABASE_URL}00_usuarios?rut_usuario=eq.${cleanRut}`, {
+        method: 'GET', cache: 'no-store',
+        headers: {
+          'apikey': CONFIG.SUPABASE_KEY,
+          'Authorization': `Bearer ${CONFIG.SUPABASE_KEY}`
+        }
+      });
+      if (!existResp.ok) throw new Error(`HTTP ${existResp.status}`);
+      const exists = await existResp.json();
+      
+      const payload = {
+        rut_usuario: data.RUT_Usuario,
+        nombre: data.Nombre,
+        rol: data.Rol,
+        estado: data.Estado || 'Activo'
+      };
+      
+      if (data.Contraseña && data.Contraseña !== '●●●●●●' && data.Contraseña.trim() !== '') {
+        payload.contrasena_hash = await hashPassword(data.Contraseña.trim());
+      } else if (exists.length === 0) {
+        payload.contrasena_hash = await hashPassword('5tierras123');
+      }
+
+      if (exists.length > 0) {
+        const resp = await fetch(`${CONFIG.SUPABASE_URL}00_usuarios?rut_usuario=eq.${cleanRut}`, {
+          method: 'PATCH',
+          headers: {
+            'apikey': CONFIG.SUPABASE_KEY,
+            'Authorization': `Bearer ${CONFIG.SUPABASE_KEY}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      } else {
+        const resp = await fetch(`${CONFIG.SUPABASE_URL}00_usuarios`, {
+          method: 'POST',
+          headers: {
+            'apikey': CONFIG.SUPABASE_KEY,
+            'Authorization': `Bearer ${CONFIG.SUPABASE_KEY}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      }
+      return { success: true };
+    } catch (e) {
+      console.warn('Error en API cloud para guardar usuario, ejecutando local:', e);
+      return _updateMockUserLocal(data);
+    }
+  }
+
+  async function deleteUserRecord(id, rol, usuario) {
+    if (!isConfigured()) {
+      return _deleteMockUserLocal(id);
+    }
+    try {
+      const cleanRut = String(id).replace(/[^0-9kK]/g, '').toUpperCase();
+      const resp = await fetch(`${CONFIG.SUPABASE_URL}00_usuarios?rut_usuario=eq.${cleanRut}`, {
+        method: 'DELETE',
+        headers: {
+          'apikey': CONFIG.SUPABASE_KEY,
+          'Authorization': `Bearer ${CONFIG.SUPABASE_KEY}`
+        }
+      });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      return { success: true };
+    } catch (e) {
+      console.warn('Error en API cloud para eliminar usuario, ejecutando local:', e);
+      return _deleteMockUserLocal(id);
+    }
+  }
+
+  async function testConnection() {
+    if (!isConfigured()) {
+      return { success: false, message: 'La conexión con Supabase no está configurada.' };
+    }
+    try {
+      const resp = await fetch(`${CONFIG.SUPABASE_URL}00_gobernanza_permisos?limit=1`, {
+        method: 'GET', cache: 'no-store',
+        headers: {
+          'apikey': CONFIG.SUPABASE_KEY,
+          'Authorization': `Bearer ${CONFIG.SUPABASE_KEY}`
+        }
+      });
+      if (resp.ok) {
+        return { success: true, message: 'Conexión exitosa con la base de datos de Supabase.' };
+      } else {
+        const txt = await resp.text();
+        return { success: false, message: `Error HTTP ${resp.status}: ${txt || 'Respuesta inválida'}` };
+      }
+    } catch (e) {
+      return { success: false, message: `Error de red o CORS: ${e.message}` };
+    }
+  }
+
+  async function _pullAllInternal(isBackground = false) {
+    if (!isBackground) {
+      updateIndicator('syncing');
+    }
+    try {
+      const result = await fetchAll(isBackground);
+      if (result && !result.error) {
+        const tableNameProps = MAPPING['propiedades']?.tableName || 'Propiedades';
+        const remoteProps = result[tableNameProps] || [];
+        const tableNameNegs = MAPPING['negociaciones']?.tableName || 'Negociaciones';
+        const remoteNegs = result[tableNameNegs] || [];
+
+        if (remoteProps.length === 0) {
+          if (isBackground) {
+            console.warn('APP5T_Sync: Background pullAll aborted: Supabase properties table is empty.');
+            updateIndicator('online');
+            return { success: false, reason: 'empty_sheet_properties' };
+          }
+          const confirmEmpty = confirm('La base de datos remota no contiene propiedades (lotes). Si continuas, se borraran los lotes locales. Deseas sincronizar de todas formas?');
+          if (!confirmEmpty) {
+            updateIndicator('online');
+            return { success: false, cancelled: true };
+          }
+        }
+
+        // ── Merge local/pending/in-flight changes BEFORE running self-healing checks ──
+        const mergedNegs = _getMergedLocalRecords('negociaciones', remoteNegs);
+        const mergedProps = _getMergedLocalRecords('propiedades', remoteProps);
+
+        // ── Safe Self-Healing: Verify property state consistency with negotiations ──
+        // IMPORTANT: This block ONLY repairs properties that are 'Disponible' but have an active
+        // negotiation (restores to correct occupied status). It NO LONGER resets occupied properties
+        // to 'Disponible' to prevent data loss when sheet sync is delayed or incomplete.
+        const activeNegs = mergedNegs.filter(n => {
+          if (!n) return false;
+          // Only consider negs with a valid integer id_propiedad (skip null/'' which are bad FK data)
+          const pid = n.id_propiedad;
+          if (pid === null || pid === undefined || pid === '' || isNaN(Number(pid))) return false;
+          const status = String(n.estado_avance || '').trim().toLowerCase();
+          return status === 'en curso' || status === 'aprobado' || status === 'finalizado';
+        });
+
+        mergedProps.forEach(prop => {
+          if (!prop) return;
+          const propId = Number(prop.id);
+          if (isNaN(propId) || propId <= 0) return; // skip props without valid ID
+          const propActiveNegs = activeNegs.filter(n => n && Number(n.id_propiedad) === propId);
+          const hasActiveNeg = propActiveNegs.length > 0;
+
+          // ── REMOVED: Destructive downgrade (occupied → Disponible) ──
+          // This caused data loss when negotiations were missing from sheet due to
+          // sync delays or FK parsing errors ('' !== null comparisons).
+          // The source-of-truth for property state is Supabase, not the sheet.
+
+          if (prop.estado === 'Disponible' && hasActiveNeg) {
+            // Safe repair: property is marked Disponible but has active negotiation → restore
+            const neg = propActiveNegs[propActiveNegs.length - 1];
+            let targetEstado = 'Disponible';
+            
+            const statusLower = String(neg.estado_avance || '').trim().toLowerCase();
+            const procesoLower = String(neg.id_proceso || '').trim().toLowerCase();
+            const opLower = String(neg.tipo_operacion || '').trim().toLowerCase();
+
+            if (statusLower === 'finalizado') {
+              targetEstado = 'Vendida';
+            } else if (procesoLower === 'promesa' || opLower === 'promesa') {
+              targetEstado = 'Promesada';
+            } else if (statusLower === 'aprobado') {
+              if (procesoLower === 'venta_directa' || opLower === 'venta_directa') {
+                targetEstado = 'Venta_Directa';
+              } else {
+                targetEstado = 'Reservada';
+              }
+            } else if (statusLower === 'en curso') {
+              targetEstado = 'Pendiente';
+            }
+
+            if (targetEstado !== 'Disponible') {
+              console.warn(`APP5T_Sync Self-Healing: Property ${prop.nombre} (ID ${prop.id}) is 'Disponible' but has an active negotiation (${neg.id_proceso}/${neg.estado_avance}). Setting to '${targetEstado}'.`);
+              prop.estado = targetEstado;
+              
+              const patchData = { estado: targetEstado };
+              if (targetEstado === 'Reservada' || targetEstado === 'Venta_Directa') {
+                prop.fecha_reserva = neg.fecha_negociacion || APP5T_Utils.fechaHoy();
+                patchData.fecha_reserva = prop.fecha_reserva;
+              } else if (targetEstado === 'Promesada') {
+                prop.fecha_fin_promesa = neg.fecha_promesa || '';
+                patchData.fecha_fin_promesa = prop.fecha_fin_promesa;
+              } else if (targetEstado === 'Vendida') {
+                prop.fecha_venta = neg.fecha_negociacion || APP5T_Utils.fechaHoy();
+                patchData.fecha_venta = prop.fecha_venta;
+              }
+
+              fetch(`${CONFIG.SUPABASE_URL}propiedades?id=eq.${prop.id}`, {
+                method: 'PATCH',
+                headers: {
+                  'apikey': CONFIG.SUPABASE_KEY,
+                  'Authorization': `Bearer ${CONFIG.SUPABASE_KEY}`,
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(patchData)
+              }).catch(err => console.error(`APP5T_Sync Self-Healing: Failed to update property ${prop.id} state to ${targetEstado} on Supabase.`, err));
+            }
+          }
+        });
+
+        let hasChanges = false;
+        const tables = ['vendedores', 'clientes', 'proyectos', 'etapas', 'propiedades', 'directorio', 'negociaciones', 'cuenta_corriente', 'tramites', 'documentos'];
+        tables.forEach(t => {
+          let localRecords;
+          if (t === 'negociaciones') {
+            localRecords = mergedNegs;
+          } else if (t === 'propiedades') {
+            localRecords = mergedProps;
+          } else {
+            const tableName = MAPPING[t]?.tableName || t;
+            const remoteRecords = result[tableName] || [];
+            localRecords = _getMergedLocalRecords(t, remoteRecords);
+          }
+          const localStr = localStorage.getItem('app5t_' + t);
+          const newStr = JSON.stringify(localRecords);
+          if (localStr !== newStr) {
+            localStorage.setItem('app5t_' + t, newStr);
+            hasChanges = true;
+          }
+        });
+
+        if (!isBackground || hasChanges) {
+          updateIndicator('online');
+        }
+        
+        if (hasChanges) {
+          const isEditing = (window.APP5T && typeof window.APP5T.isUserEditing === 'function') ? window.APP5T.isUserEditing() : false;
+          const isExportingPDF = !!window.APP5T_PDF_EXPORTING;
+          if (!isEditing && !isExportingPDF) {
+            if (window.APP5T && typeof window.APP5T.refreshAll === 'function') {
+              window.APP5T.refreshAll();
+            }
+            
+            if (typeof APP5T_Map !== 'undefined' && APP5T_Map.getSelectedLote) {
+              const selected = APP5T_Map.getSelectedLote();
+              if (selected && window.APP5T && typeof window.APP5T.onLoteSelected === 'function') {
+                const freshLote = APP5T_DB.getById('propiedades', selected.id);
+                if (freshLote) {
+                  window.APP5T.onLoteSelected(freshLote);
+                }
+              }
+            }
+          } else {
+            console.log("APP5T_Sync: UI refresh postponed because user is editing a form or exporting a PDF. (Editing: " + isEditing + ", Exporting: " + isExportingPDF + ")");
+          }
+        }
+        return { success: true };
+      } else {
+        throw new Error(result?.error || 'Respuesta inválida de Supabase');
+      }
+    } catch (e) {
+      updateIndicator('offline');
+      console.error('APP5T_Sync: pullAll failed.', e);
+      throw e;
+    }
+  }
+
+  async function pullAll(isBackground = false) {
+    if (!isConfigured()) throw new Error('Sync not configured');
+    return _enqueue(() => _pullAllInternal(isBackground));
+  }
+
+  /* PUBLIC API */
+  const api = { 
+    configure, 
+    isConfigured, 
+    init, 
+    testConnection,
+    fetchAll, 
+    pushRecord, 
+    syncAll, 
+    stopSync, 
+    pullAll, 
+    updateIndicator,
+    login,
+    updatePermissionsMatrix,
+    getUsersList,
+    updateUserRecord,
+    deleteUserRecord,
+    hashPassword, // Exported for unit tests
+    getConfig: () => CONFIG
+  };
+  
+  // Trigger a sync pull when the window gets focus (tab switched back or click back to browser)
+  window.addEventListener('focus', async () => {
+    if (isConfigured() && !_isSyncing) {
+      console.log('APP5T_Sync: Window focused. Triggering background pull.');
+      _isSyncing = true;
+      try {
+        await _replayPending();
+        await pullAll(true);
+      } catch (e) {
+        console.warn('APP5T_Sync: Focus background pull failed.', e.message);
+      } finally {
+        _isSyncing = false;
+      }
+    }
+  });
+
   window.APP5T_Sync = api;
   return api;
 })();

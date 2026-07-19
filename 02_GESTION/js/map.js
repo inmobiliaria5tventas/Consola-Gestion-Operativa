@@ -16,41 +16,54 @@ const APP5T_Map = (function () {
     let projectMarkersGroup = null;
 
     // ── Project centres ────────────────────────────────────────────────────
+    const isMobile = window.innerWidth <= 768;
     const CENTERS = {
-        'El Copihue':   { lat: -36.120, lng: -71.776, zoom: 15 },
+        'El Copihue':   { 
+            lat: -36.120, 
+            lng: isMobile ? -71.778 : -71.776, 
+            zoom: 16 
+        },
         'Las Brisas':   { lat: -36.385, lng: -71.953, zoom: 16 },
         'Los Encinos':  { lat: -36.468, lng: -71.842, zoom: 16 },
-        'Los Naranjos': { lat: -36.478, lng: -71.838, zoom: 15 }
+        'Los Naranjos': { lat: -36.478, lng: -71.838, zoom: 16 }
     };
 
     // ── Estado → colour ────────────────────────────────────────────────────
     const COLORS = {
-        'Disponible': '#2ecc71',
-        'Pendiente':  '#f1c40f',
-        'Reservada':  '#f39c12',
-        'Promesada':  '#3498db',
-        'Vendida':    '#e74c3c'
+        'Disponible':    '#2ecc71',
+        'Pendiente':     '#ffdd59',
+        'Reservada':     '#d97706',
+        'Promesada':     '#3498db',
+        'Venta_Directa': '#8b5cf6',   // Púrpura — Aprobada, espera escritura
+        'Vendida':       '#e74c3c',
+        'Bloqueado':     '#7f8c8d'    // Gris - Bloqueado por gerencia
     };
 
     // ── Default (unselected) feature style ─────────────────────────────────
     function _defaultStyle(estado) {
+        const isPend = estado === 'Pendiente';
+        const isVD   = estado === 'Venta_Directa';
         return {
             fillColor:   COLORS[estado] || '#95a5a6',
-            fillOpacity: 0.5,
-            weight:      1.5,
-            color:       'rgba(255,255,255,0.6)',
-            opacity:     1
+            fillOpacity: isPend ? 0.65 : (isVD ? 0.55 : 0.5),
+            weight:      (isPend || isVD) ? 2 : 1.5,
+            color:       isPend ? '#ffd32a' : (isVD ? '#7c3aed' : 'rgba(255,255,255,0.6)'),
+            opacity:     1,
+            dashArray:   isPend ? '3, 4' : (isVD ? '6, 3' : null)
         };
     }
 
     // ── Highlight style ────────────────────────────────────────────────────
     function _highlightStyle(estado) {
+        const isPend = estado === 'Pendiente';
+        const isVD   = estado === 'Venta_Directa';
         return {
             fillColor:   COLORS[estado] || '#95a5a6',
-            fillOpacity: 0.7,
+            fillOpacity: isPend ? 0.8 : (isVD ? 0.75 : 0.7),
             weight:      3,
             color:       '#ffffff',
-            opacity:     1
+            opacity:     1,
+            dashArray:   isPend ? '3, 4' : (isVD ? '6, 3' : null)
         };
     }
 
@@ -196,6 +209,13 @@ const APP5T_Map = (function () {
         // Zoom change → toggle label visibility
         map.on('zoomend', _updateLabelVisibility);
         _updateLabelVisibility();
+
+        // Popup close event → deselect if it matches the selected lot
+        map.on('popupclose', function (e) {
+            if (selectedFeature && selectedFeature.layer && typeof selectedFeature.layer.getPopup === 'function' && selectedFeature.layer.getPopup() === e.popup) {
+                _deselectPrevious();
+            }
+        });
     }
 
     // ── Public: loadAllProjects ────────────────────────────────────────────
@@ -266,7 +286,7 @@ const APP5T_Map = (function () {
                 });
 
                 // Permanent tooltip for lot name (CSS-controlled visibility)
-                var labelText = (feature.properties.nombre || '').replace(/^Lote\s*/i, '');
+                var labelText = String(feature.properties.nombre != null ? feature.properties.nombre : '').replace(/^Lote\s*/i, '');
                 layer.bindTooltip(labelText, {
                     permanent:  true,
                     direction:  'center',
@@ -304,7 +324,10 @@ const APP5T_Map = (function () {
 
     // ── Public: refreshColors ──────────────────────────────────────────────
     function refreshColors() {
-        if (!currentLayer) return;
+        if (!currentLayer || (typeof currentLayer.getLayers === 'function' && currentLayer.getLayers().length === 0)) {
+            loadAllProjects();
+            return;
+        }
 
         currentLayer.eachLayer(function (layer) {
             const id = layer._propiedadId;
@@ -405,6 +428,24 @@ const APP5T_Map = (function () {
         projectMarkersGroup = null;
     }
 
+    function getSelectedLote() {
+        return selectedFeature ? selectedFeature.data : null;
+    }
+
+    function openPopup(propiedadId, contentEl) {
+        if (!map || !currentLayer) return;
+        currentLayer.eachLayer(function (layer) {
+            if (layer._propiedadId === propiedadId) {
+                layer.unbindPopup();
+                layer.bindPopup(contentEl, {
+                    maxWidth: 300,
+                    minWidth: 260,
+                    autoPan: true
+                }).openPopup();
+            }
+        });
+    }
+
     // ── Public API ─────────────────────────────────────────────────────────
     var _api = {
         init:          init,
@@ -414,6 +455,9 @@ const APP5T_Map = (function () {
         highlightLote: highlightLote,
         getStatusFilter: getStatusFilter,
         applyFilter:   applyFilter,
+        getSelectedLote: getSelectedLote,
+        openPopup:     openPopup,
+        deselectPrevious: _deselectPrevious,
         destroy:       destroy,
         COLORS:        COLORS,
         CENTERS:       CENTERS,

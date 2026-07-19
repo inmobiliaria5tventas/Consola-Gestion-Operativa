@@ -25,45 +25,55 @@
 // ══════════════════════════════════════════════════════
 
 const TABLAS = {
+  "00_Usuarios": [
+    'RUT_Usuario', 'Nombre', 'Contraseña_Hash', 'Rol', 'Estado'
+  ],
+  "00_Gobernanza_Permisos": [
+    'ID_Permiso', 'Componente_Modulo', 'Descripcion', 'Acceso_Vendedor', 'Acceso_Gerencia', 'Acceso_Administracion'
+  ],
+  // ─── Tablas de negocio ── nombres alineados con db.js / forms.js (snake_case) ───
   Vendedores: [
-    'Id_vendedor', 'Rut_vendedor', 'Nombre_vendedor', 'Fecha_ingreso',
-    'Ciudad', 'Telefono', 'Correo_electronico', 'Cargo', 'Estado'
+    'id_vendedor', 'rut', 'nombre', 'fecha_ingreso',
+    'ciudad', 'telefono', 'email', 'cargo', 'estado'
   ],
   Clientes: [
-    'Id_cliente', 'Rut_cliente', 'Nombres', 'Apellidos', 'Fecha_nacimiento',
-    'Direccion', 'Comuna', 'Telefono', 'Correo_electronico', 'Estado_civil',
-    'Regimen_matrimonial', 'Fecha_ingreso', 'Canal_captacion', 'Vendedor_assigned',
-    'Motivo_busqueda', 'Notas', 'Historial', 'Estado_cliente'
+    'id_cliente', 'rut', 'nombres', 'apellidos', 'fecha_nacimiento',
+    'direccion', 'comuna', 'telefono', 'email', 'estado_civil',
+    'regimen_matrimonial', 'fecha_ingreso', 'canal_captacion', 'id_vendedor',
+    'motivo_busqueda', 'notas', 'historial', 'estado_cliente'
   ],
   Proyectos: [
-    'Id_proyecto', 'Nombre_proyecto', 'Ubicacion', 'Comuna', 'Coordenadas',
-    'Superficie', 'Rol', 'Deslindes', 'Infraestructura', 'Caracteristicas',
-    'Fecha_DOM', 'Fecha_ingreso', 'Estado_proyecto', 'Nro_etapas', 'Url'
+    'id_proyecto', 'nombre_proyecto', 'ubicacion', 'comuna', 'coordenadas_centro',
+    'superficie', 'rol', 'deslindes', 'infraestructura', 'caracteristicas',
+    'fecha_dom', 'fecha_ingreso', 'estado_proyecto', 'nro_etapas', 'url'
   ],
   Etapas: [
-    'Id_etapa', 'Id_proyecto', 'Nombre_etapa', 'Nro_lotes', 'Superficie',
-    'Fecha_ingreso', 'Fecha_DOM', 'Estado_etapa', 'Fecha_inicio', 'Fecha_cierre', 'Url'
+    'id_etapa', 'id_proyecto', 'nombre_etapa', 'nro_lotes', 'superficie',
+    'fecha_ingreso', 'fecha_dom', 'estado_etapa', 'fecha_inicio', 'fecha_cierre', 'url'
   ],
   Propiedades: [
-    'Id_propiedad', 'Id_etapa', 'Nombre_propiedad', 'Rol_propiedad', 'Superficie',
-    'Valor_final', 'Fecha_ingreso', 'Deslindes', 'Infraestructura',
-    'Fecha_reserva', 'Fecha_fin_promesa', 'Fecha_venta', 'Url', 'Estado'
+    'id_propiedad', 'id_etapa', 'id_proyecto', 'nombre', 'rol', 'superficie',
+    'valor_final', 'abono', 'fecha_ingreso', 'deslindes', 'infraestructura',
+    'fecha_reserva', 'fecha_fin_promesa', 'fecha_venta', 'url', 'estado', 'coordenadas'
   ],
   Directorio: [
-    'Id_director', 'Rut_director', 'Nombre_director', 'Cargo', 'Telefono',
-    'Correo_electronico', 'Fecha_ingreso', 'Estado', 'Autorizacion_reserva',
-    'Firma_reserva', 'Autorizacion_promesa', 'Firma_promesa',
-    'Autorizacion_venta', 'Firma_venta'
+    'id_director', 'rut', 'nombre', 'cargo', 'telefono',
+    'email', 'fecha_ingreso', 'estado', 'auth_reserva',
+    'firma_reserva', 'auth_promesa', 'firma_promesa',
+    'auth_venta', 'firma_venta'
   ],
   Negociaciones: [
-    'Id_negociacion', 'Id_propiedad', 'Id_vendedor', 'Id_cliente',
-    'Fecha_negociacion', 'Valor_final', 'Pie', 'Cantidad_cuotas',
-    'Fecha_vencimiento_cuota', 'Tipo_moneda', 'Url', 'Estado_avance',
-    'Reajuste', 'Id_proceso'
+    'id_negociacion', 'id_propiedad', 'id_vendedor', 'id_cliente',
+    'fecha_negociacion', 'valor_final', 'pie', 'cantidad_cuotas',
+    'fecha_vencimiento_cuota', 'tipo_moneda', 'url', 'estado_avance',
+    'reajuste', 'id_proceso', 'metodo_pago', 'notas', 'fecha_promesa', 'tipo_operacion'
   ],
   Cuenta_Corriente: [
-    'Id_ctacte', 'Id_cliente', 'Id_propiedad', 'Cuota_nro', 'Valor_cuota',
-    'Fecha_vencimiento', 'Valor_pagado', 'Fecha_pago', 'Url', 'Estado_cuota'
+    'id_ctacte', 'id_cliente', 'id_propiedad', 'cuota_nro', 'valor_cuota',
+    'fecha_vencimiento', 'valor_pagado', 'fecha_pago', 'url', 'estado_cuota', 'metodo_pago'
+  ],
+  Tramites: [
+    'id_tramite', 'Nombre_tramite', 'fecha_inicio', 'id_propiedad', 'id_director', 'Estado_tramite', 'id_proceso'
   ],
   Auditoria: [
     'Fecha', 'Usuario', 'Rol', 'Tabla', 'Accion', 'Registro_id', 'Detalle'
@@ -72,6 +82,8 @@ const TABLAS = {
 
 // Colores de encabezado por tabla
 const COLORES_HEADER = {
+  "00_Usuarios":           '#1e293b', // Slate
+  "00_Gobernanza_Permisos": '#0f172a', // Dark Slate
   Vendedores:       '#2563eb', // Azul
   Clientes:         '#7c3aed', // Violeta
   Proyectos:        '#059669', // Verde
@@ -80,19 +92,23 @@ const COLORES_HEADER = {
   Directorio:       '#dc2626', // Rojo
   Negociaciones:    '#ea580c', // Naranja
   Cuenta_Corriente: '#4f46e5', // Indigo
+  Tramites:         '#0284c7', // Celeste
   Auditoria:        '#6b7280'  // Gris
 };
 
-// Nombre de la columna PK por tabla
+// Nombre de la columna PK por tabla (alineado con db.js)
 const PK_COLUMNA = {
-  Vendedores:       'Id_vendedor',
-  Clientes:         'Id_cliente',
-  Proyectos:        'Id_proyecto',
-  Etapas:           'Id_etapa',
-  Propiedades:      'Id_propiedad',
-  Directorio:       'Id_director',
-  Negociaciones:    'Id_negociacion',
-  Cuenta_Corriente: 'Id_ctacte'
+  "00_Usuarios":           'RUT_Usuario',
+  "00_Gobernanza_Permisos": 'ID_Permiso',
+  Vendedores:       'id_vendedor',
+  Clientes:         'id_cliente',
+  Proyectos:        'id_proyecto',
+  Etapas:           'id_etapa',
+  Propiedades:      'id_propiedad',
+  Directorio:       'id_director',
+  Negociaciones:    'id_negociacion',
+  Cuenta_Corriente: 'id_ctacte',
+  Tramites:         'id_tramite'
 };
 
 
@@ -101,7 +117,7 @@ const PK_COLUMNA = {
 // ══════════════════════════════════════════════════════
 
 /**
- * Crea las 9 hojas con encabezados formateados.
+ * Crea las hojas con encabezados formateados y siembra datos iniciales de seguridad.
  * Ejecutar manualmente desde el editor de Apps Script.
  */
 function inicializarHojas() {
@@ -140,6 +156,66 @@ function inicializarHojas() {
     }
   });
   
+  // ── Siembra de Usuarios (00_Usuarios) si está vacía ──
+  const userSheet = ss.getSheetByName('00_Usuarios');
+  if (userSheet && userSheet.getLastRow() <= 1) {
+    Logger.log('🌱 Sembrando datos en 00_Usuarios...');
+    const defaultUsers = [
+      ['11.111.111-1', 'Ricardo Comercial (Vendedor)', hashPassword('vendedor123'), 'Vendedor', 'Activo'],
+      ['22.222.222-2', 'Ximena Guzmán (Gerente)', hashPassword('gerente123'), 'Gerencia', 'Activo'],
+      ['33.333.333-3', 'Claudio Documental (Administración)', hashPassword('admin123'), 'Administracion', 'Activo']
+    ];
+    userSheet.getRange(2, 1, defaultUsers.length, 5).setValues(defaultUsers);
+    Logger.log('✅ Usuarios sembrados.');
+  }
+
+  // ── Siembra de Permisos (00_Gobernanza_Permisos) si está vacía ──
+  const permSheet = ss.getSheetByName('00_Gobernanza_Permisos');
+  if (permSheet && permSheet.getLastRow() <= 1) {
+    Logger.log('🌱 Sembrando matriz de permisos inicial...');
+    const defaultPerms = [
+      [1, 'Buscador_Mapa', 'Ver y filtrar el mapa satelital GIS de lotes', 'TRUE', 'TRUE', 'TRUE'],
+      [2, 'Formulario_Reserva', 'Formulario de reserva y compra de parcelas', 'TRUE', 'TRUE', 'TRUE'],
+      [3, 'Bandeja_Aprobaciones', 'Aprobación y rechazo de reservas de lotes', 'FALSE', 'TRUE', 'TRUE'],
+      [4, 'Carga_PDF_Promesa', 'Subir documentos firmados de promesas de compraventa', 'FALSE', 'FALSE', 'TRUE'],
+      [5, 'Dashboard_Financiero', 'Panel de métricas comerciales y gráficos financieros', 'FALSE', 'TRUE', 'TRUE'],
+      [6, 'Mis_Leads', 'Listado y seguimiento de prospectos asignados', 'TRUE', 'FALSE', 'TRUE'],
+      [7, 'Control_Precios', 'Ver y editar precios de lista de las parcelas', 'FALSE', 'TRUE', 'TRUE'],
+      [8, 'Mesa_Documental', 'Firma de promesas y escrituración de lotes', 'FALSE', 'FALSE', 'TRUE'],
+      [9, 'Cuenta_Corriente', 'Gestión y pago de cuotas de financiamiento', 'FALSE', 'FALSE', 'TRUE'],
+      [10, 'Carga_Datos', 'Administración de entidades base (Vendedores, Clientes, Proyectos, Etapas)', 'FALSE', 'FALSE', 'TRUE'],
+      [11, 'Inventario', 'Consulta de listado de inventario general', 'FALSE', 'TRUE', 'TRUE'],
+      [12, 'Auditoria', 'Registro detallado de acciones ejecutadas en el sistema', 'FALSE', 'FALSE', 'TRUE'],
+      [13, 'Configuracion_Sistema', 'Configuración de gobernanza, permisos y usuarios', 'FALSE', 'FALSE', 'TRUE']
+    ];
+    permSheet.getRange(2, 1, defaultPerms.length, 6).setValues(defaultPerms);
+    Logger.log('✅ Matriz de permisos sembrada.');
+  }
+  
+  // ── Siembra de Vendedores si está vacía ──
+  const vendSheet = ss.getSheetByName('Vendedores');
+  if (vendSheet && vendSheet.getLastRow() <= 1) {
+    Logger.log('🌱 Sembrando datos en Vendedores...');
+    // Columnas: id_vendedor, rut, nombre, fecha_ingreso, ciudad, telefono, email, cargo, estado
+    const defaultVend = [
+      [1, '11.111.111-1', 'Ricardo Comercial', new Date().toLocaleDateString('es-CL'), 'Santiago', '+56 9 1111 1111', 'ricardo@5tierras.cl', 'Ejecutivo Senior', 'Activo']
+    ];
+    vendSheet.getRange(2, 1, defaultVend.length, 9).setValues(defaultVend);
+    Logger.log('✅ Vendedores sembrados.');
+  }
+
+  // ── Siembra de Directorio si está vacía ──
+  const dirSheet = ss.getSheetByName('Directorio');
+  if (dirSheet && dirSheet.getLastRow() <= 1) {
+    Logger.log('🌱 Sembrando datos en Directorio...');
+    // Columnas: id_director, rut, nombre, cargo, telefono, email, fecha_ingreso, estado, auth_reserva, firma_reserva, auth_promesa, firma_promesa, auth_venta, firma_venta
+    const defaultDir = [
+      [1, '22.222.222-2', 'Ximena Guzmán', 'Directora Ejecutiva', '+56 9 2222 2222', 'ximena@5tierras.cl', new Date().toLocaleDateString('es-CL'), 'Disponible', 'S', 'S', 'S', 'S', 'S', 'S']
+    ];
+    dirSheet.getRange(2, 1, defaultDir.length, 14).setValues(defaultDir);
+    Logger.log('✅ Directorio sembrado.');
+  }
+  
   // Eliminar la hoja por defecto si existe
   const defaultSheet = ss.getSheetByName('Hoja 1') || ss.getSheetByName('Sheet1');
   if (defaultSheet && ss.getSheets().length > 1) {
@@ -154,10 +230,52 @@ function inicializarHojas() {
   Logger.log('');
   Logger.log('══════════════════════════════════════');
   Logger.log('✅ INICIALIZACIÓN COMPLETA');
-  Logger.log('   Hojas creadas: ' + Object.keys(TABLAS).length);
+  Logger.log('   Hojas creadas: ' + ss.getSheets().length);
   Logger.log('   Próximo paso: Implementar como Web App');
   Logger.log('══════════════════════════════════════');
 }
+
+
+/**
+ * Migra los encabezados de las hojas de cálculo al nuevo formato en minúsculas.
+ * Inserta la columna "abono" en la hoja Propiedades si es necesario para evitar desalineamiento de datos.
+ * Ejecutar manualmente en el editor de Apps Script si las hojas fueron creadas con el formato antiguo.
+ */
+function migrarFormatoHojas() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  
+  // 1. Migrar Propiedades si tiene el formato antiguo (sin abono en col 7)
+  const propSheet = ss.getSheetByName('Propiedades');
+  if (propSheet && propSheet.getLastColumn() > 0) {
+    const headers = propSheet.getRange(1, 1, 1, propSheet.getLastColumn()).getValues()[0];
+    if (headers[6] !== 'abono' && headers[6] !== 'Abono') {
+      Logger.log('⚠️ Detectado formato antiguo en Propiedades. Insertando columna "abono" en columna 7...');
+      propSheet.insertColumnAfter(6); // Inserta después de la columna 6, creando una columna 7 vacía
+      Logger.log('✅ Columna "abono" insertada en la columna 7.');
+    }
+  }
+  
+  // 2. Sobrescribir encabezados con el esquema actual en minúsculas (snake_case)
+  Object.entries(TABLAS).forEach(([nombreTabla, columnas]) => {
+    let sheet = ss.getSheetByName(nombreTabla);
+    if (sheet) {
+      sheet.getRange(1, 1, 1, columnas.length).setValues([columnas]);
+      
+      // Formato estético
+      const headerRange = sheet.getRange(1, 1, 1, columnas.length);
+      headerRange.setFontWeight('bold');
+      headerRange.setFontColor('#ffffff');
+      headerRange.setBackground(COLORES_HEADER[nombreTabla] || '#374151');
+      headerRange.setHorizontalAlignment('center');
+      headerRange.setFontSize(10);
+      
+      Logger.log('✅ Encabezados actualizados a minúsculas para: ' + nombreTabla);
+    }
+  });
+  
+  Logger.log('🎉 MIGRACIÓN DE ENCABEZADOS A MINÚSCULAS COMPLETADA.');
+}
+
 
 
 // ══════════════════════════════════════════════════════
@@ -172,6 +290,9 @@ function doGet(e) {
     
     switch (action) {
       case 'read':
+        if (!tabla && e.parameter.proyecto) {
+          return leerLotesProyecto(e.parameter.proyecto);
+        }
         if (!tabla) return respError('Parámetro "tabla" requerido', 400);
         return leerTabla(tabla);
         
@@ -182,8 +303,11 @@ function doGet(e) {
       case 'readall':
         return leerTodasLasTablas();
         
+      case 'get_permissions':
+        return respOk({ success: true, permisos: obtenerMatrizPermisosInternal() });
+        
       case 'ping':
-        return respOk({ status: 'online', app: 'APP_5T', version: '1.0.0', timestamp: new Date().toISOString() });
+        return respOk({ status: 'online', app: 'APP_5T', version: '1.2.0', timestamp: new Date().toISOString() });
         
       default:
         return respError('Acción GET no reconocida: ' + action, 400);
@@ -204,11 +328,38 @@ function doPost(e) {
     const action = (body.action || 'insert').toLowerCase();
     const tabla = body.tabla || '';
     
-    if (!tabla && action !== 'syncall') {
+    if (!tabla && action !== 'syncall' && action !== 'login' && action !== 'update_permissions' && action !== 'get_users' && action !== 'update_user' && action !== 'delete_user') {
       return respError('Campo "tabla" requerido en el body', 400);
     }
     
     switch (action) {
+      case 'login':
+        return respOk(validarCredenciales(body.rut, body.password));
+        
+      case 'get_permissions':
+        return respOk({ success: true, permisos: obtenerMatrizPermisosInternal() });
+        
+      case 'update_permissions':
+        return respOk(actualizarMatrizPermisos(body.permisos, body.usuario));
+        
+      case 'get_users':
+        if (body.rol !== 'Administracion') {
+          return respError('No autorizado', 403);
+        }
+        return respOk({ success: true, usuarios: obtenerUsuariosInternal() });
+        
+      case 'update_user':
+        if (body.rol !== 'Administracion') {
+          return respError('No autorizado', 403);
+        }
+        return respOk(guardarUsuario(body.data, body.usuario));
+        
+      case 'delete_user':
+        if (body.rol !== 'Administracion') {
+          return respError('No autorizado', 403);
+        }
+        return respOk(eliminarUsuario(body.id, body.usuario));
+
       case 'insert':
         return insertarRegistro(tabla, body.data || {}, body.usuario || 'Sistema');
         
@@ -250,7 +401,7 @@ function doPost(e) {
  */
 function leerTabla(nombreTabla) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(nombreTabla);
+  const sheet = obtenerHoja(ss, nombreTabla);
   if (!sheet) return respError('Tabla "' + nombreTabla + '" no encontrada', 404);
   
   const data = sheet.getDataRange().getValues();
@@ -275,7 +426,7 @@ function leerTabla(nombreTabla) {
  */
 function leerRegistro(nombreTabla, id) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(nombreTabla);
+  const sheet = obtenerHoja(ss, nombreTabla);
   if (!sheet) return respError('Tabla "' + nombreTabla + '" no encontrada', 404);
   
   const pkCol = PK_COLUMNA[nombreTabla];
@@ -306,9 +457,9 @@ function leerTodasLasTablas() {
   const resultado = {};
   
   Object.keys(TABLAS).forEach(nombreTabla => {
-    if (nombreTabla === 'Auditoria') return; // No enviar auditoría al cliente
+    if (nombreTabla === 'Auditoria' || nombreTabla === '00_Usuarios' || nombreTabla === '00_Gobernanza_Permisos') return; // Excluir tablas de seguridad e historial del readAll público
     
-    const sheet = ss.getSheetByName(nombreTabla);
+    const sheet = obtenerHoja(ss, nombreTabla);
     if (!sheet) {
       resultado[nombreTabla] = [];
       return;
@@ -338,7 +489,7 @@ function leerTodasLasTablas() {
  */
 function insertarRegistro(nombreTabla, data, usuario) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(nombreTabla);
+  const sheet = obtenerHoja(ss, nombreTabla);
   if (!sheet) return respError('Tabla "' + nombreTabla + '" no encontrada', 404);
   
   const columnas = TABLAS[nombreTabla];
@@ -374,7 +525,7 @@ function insertarRegistro(nombreTabla, data, usuario) {
  */
 function actualizarRegistro(nombreTabla, id, data, usuario) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(nombreTabla);
+  const sheet = obtenerHoja(ss, nombreTabla);
   if (!sheet) return respError('Tabla "' + nombreTabla + '" no encontrada', 404);
   
   const columnas = TABLAS[nombreTabla];
@@ -428,7 +579,7 @@ function actualizarRegistro(nombreTabla, id, data, usuario) {
  */
 function eliminarRegistro(nombreTabla, id, usuario) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(nombreTabla);
+  const sheet = obtenerHoja(ss, nombreTabla);
   if (!sheet) return respError('Tabla "' + nombreTabla + '" no encontrada', 404);
   
   const pkCol = PK_COLUMNA[nombreTabla];
@@ -475,7 +626,7 @@ function eliminarRegistro(nombreTabla, id, usuario) {
  */
 function sincronizarTabla(nombreTabla, registros, usuario) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(nombreTabla);
+  const sheet = obtenerHoja(ss, nombreTabla);
   if (!sheet) return respError('Tabla "' + nombreTabla + '" no encontrada', 404);
   
   const columnas = TABLAS[nombreTabla];
@@ -578,6 +729,40 @@ function obtenerSiguienteId(sheet, pkColIndex) {
   });
   
   return maxId + 1;
+}
+
+/**
+ * Obtiene una hoja por su nombre. Si no existe pero está definida en TABLAS, la crea automáticamente.
+ */
+function obtenerHoja(ss, nombreTabla) {
+  let sheet = ss.getSheetByName(nombreTabla);
+  if (sheet) return sheet;
+  
+  const columnas = TABLAS[nombreTabla];
+  if (!columnas) return null;
+  
+  sheet = ss.insertSheet(nombreTabla);
+  sheet.getRange(1, 1, 1, columnas.length).setValues([columnas]);
+  
+  // Formato del encabezado
+  const headerRange = sheet.getRange(1, 1, 1, columnas.length);
+  headerRange.setFontWeight('bold');
+  headerRange.setFontColor('#ffffff');
+  headerRange.setBackground(COLORES_HEADER[nombreTabla] || '#374151');
+  headerRange.setHorizontalAlignment('center');
+  headerRange.setFontSize(10);
+  
+  // Congelar fila de encabezado
+  sheet.setFrozenRows(1);
+  
+  // Ajustar ancho de columnas
+  columnas.forEach((col, idx) => {
+    const width = col.length > 15 ? 180 : col.length > 10 ? 140 : 100;
+    sheet.setColumnWidth(idx + 1, width);
+  });
+  
+  Logger.log('✅ Hoja auto-creada sobre la marcha: ' + nombreTabla);
+  return sheet;
 }
 
 /**
@@ -690,4 +875,336 @@ function verEstadisticas() {
   });
   
   Logger.log('══════════════════════════════════════');
+}
+
+// ══════════════════════════════════════════════════════
+// SEGURIDAD Y GOBERNANZA - LOGICA DE NEGOCIO
+// ══════════════════════════════════════════════════════
+
+/**
+ * Limpia un RUT eliminando puntos, guiones y espacios.
+ */
+function limpiarRUT(rut) {
+  if (!rut) return '';
+  return String(rut).replace(/[^0-9kK]/g, '').toUpperCase();
+}
+
+/**
+ * Encripta una contraseña usando SHA-256.
+ */
+function hashPassword(password) {
+  if (!password) return '';
+  var digest = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, password, Utilities.Charset.UTF_8);
+  var hex = "";
+  for (var i = 0; i < digest.length; i++) {
+    var byteVal = digest[i];
+    if (byteVal < 0) byteVal += 256;
+    var byteString = byteVal.toString(16);
+    if (byteString.length == 1) byteString = "0" + byteString;
+    hex += byteString;
+  }
+  return hex;
+}
+
+/**
+ * Valida las credenciales ingresadas contra la hoja 00_Usuarios.
+ */
+function validarCredenciales(rut, password) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName('00_Usuarios');
+  if (!sheet) return { success: false, mensaje: 'Base de datos de usuarios no configurada' };
+  
+  const cleanInputRut = limpiarRUT(rut);
+  const hash = hashPassword(password);
+  
+  const data = sheet.getDataRange().getValues();
+  const headers = data[0];
+  const rutIdx = headers.indexOf('RUT_Usuario');
+  const nombreIdx = headers.indexOf('Nombre');
+  const hashIdx = headers.indexOf('Contraseña_Hash');
+  const rolIdx = headers.indexOf('Rol');
+  const estadoIdx = headers.indexOf('Estado');
+  
+  if (rutIdx === -1 || hashIdx === -1 || rolIdx === -1 || estadoIdx === -1) {
+    return { success: false, mensaje: 'Columnas de seguridad incompletas en la hoja 00_Usuarios' };
+  }
+  
+  for (let i = 1; i < data.length; i++) {
+    const dbRut = limpiarRUT(data[i][rutIdx]);
+    if (dbRut === cleanInputRut) {
+      if (String(data[i][estadoIdx]).toLowerCase() !== 'activo') {
+        return { success: false, mensaje: 'El usuario se encuentra Inactivo en el sistema.' };
+      }
+      if (data[i][hashIdx] === hash) {
+        // Obtener la matriz de permisos para el rol de usuario
+        const permisos = obtenerMatrizPermisosInternal();
+        return {
+          success: true,
+          user: {
+            rut: data[i][rutIdx],
+            nombre: data[i][nombreIdx] || 'Usuario',
+            rol: data[i][rolIdx]
+          },
+          permisos: permisos
+        };
+      } else {
+        return { success: false, mensaje: 'Contraseña incorrecta' };
+      }
+    }
+  }
+  
+  return { success: false, mensaje: 'RUT de usuario no registrado' };
+}
+
+/**
+ * Obtiene la matriz de gobernanza y permisos completa.
+ */
+function obtenerMatrizPermisosInternal() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName('00_Gobernanza_Permisos');
+  if (!sheet) return [];
+  
+  const data = sheet.getDataRange().getValues();
+  if (data.length <= 1) return [];
+  const headers = data[0];
+  const list = [];
+  
+  for (let i = 1; i < data.length; i++) {
+    const row = {};
+    headers.forEach((h, idx) => {
+      let val = data[i][idx];
+      // Convertir "TRUE"/"FALSE" strings a booleanos
+      if (h.startsWith('Acceso_')) {
+        val = (String(val).toUpperCase() === 'TRUE' || val === true);
+      }
+      row[h] = val;
+    });
+    list.push(row);
+  }
+  return list;
+}
+
+/**
+ * Reemplaza y actualiza la matriz de permisos en la hoja.
+ */
+function actualizarMatrizPermisos(matriz, usuario) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let sheet = ss.getSheetByName('00_Gobernanza_Permisos');
+    if (!sheet) return { success: false, error: 'Hoja 00_Gobernanza_Permisos no encontrada' };
+    
+    const headers = ['ID_Permiso', 'Componente_Modulo', 'Descripcion', 'Acceso_Vendedor', 'Acceso_Gerencia', 'Acceso_Administracion'];
+    
+    // Limpiar contenido previo manteniendo el header
+    const lastRow = sheet.getLastRow();
+    if (lastRow > 1) {
+      sheet.deleteRows(2, lastRow - 1);
+    }
+    
+    if (matriz && matriz.length > 0) {
+      const rows = matriz.map(m => [
+        Number(m.ID_Permiso) || m.ID_Permiso,
+        m.Componente_Modulo,
+        m.Descripcion,
+        m.Acceso_Vendedor === true || String(m.Acceso_Vendedor).toUpperCase() === 'TRUE' ? 'TRUE' : 'FALSE',
+        m.Acceso_Gerencia === true || String(m.Acceso_Gerencia).toUpperCase() === 'TRUE' ? 'TRUE' : 'FALSE',
+        m.Acceso_Administracion === true || String(m.Acceso_Administracion).toUpperCase() === 'TRUE' ? 'TRUE' : 'FALSE'
+      ]);
+      sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
+    }
+    
+    registrarAuditoria(usuario || 'Administrador', 'Administracion', '00_Gobernanza_Permisos', 'UPDATE', 'MATRIZ_PERMISOS', 'Configuración de matriz de permisos actualizada');
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * Obtiene los usuarios de la base de datos (con las contraseñas ocultas).
+ */
+function obtenerUsuariosInternal() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName('00_Usuarios');
+  if (!sheet) return [];
+  
+  const data = sheet.getDataRange().getValues();
+  if (data.length <= 1) return [];
+  const headers = data[0];
+  const list = [];
+  
+  for (let i = 1; i < data.length; i++) {
+    const row = {};
+    headers.forEach((h, idx) => {
+      if (h === 'Contraseña_Hash') {
+        row[h] = '●●●●●●';
+      } else {
+        row[h] = data[i][idx];
+      }
+    });
+    list.push(row);
+  }
+  return list;
+}
+
+/**
+ * Crea o actualiza un usuario en la hoja 00_Usuarios.
+ */
+function guardarUsuario(usuarioData, administrador) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let sheet = ss.getSheetByName('00_Usuarios');
+    if (!sheet) return { success: false, error: 'Hoja 00_Usuarios no encontrada' };
+    
+    const data = sheet.getDataRange().getValues();
+    const headers = data[0];
+    const rutIdx = headers.indexOf('RUT_Usuario');
+    const nombreIdx = headers.indexOf('Nombre');
+    const hashIdx = headers.indexOf('Contraseña_Hash');
+    const rolIdx = headers.indexOf('Rol');
+    const estadoIdx = headers.indexOf('Estado');
+    
+    const cleanInputRut = limpiarRUT(usuarioData.RUT_Usuario);
+    if (!cleanInputRut) return { success: false, error: 'El RUT es obligatorio' };
+    
+    let rowIndex = -1;
+    for (let i = 1; i < data.length; i++) {
+      if (limpiarRUT(data[i][rutIdx]) === cleanInputRut) {
+        rowIndex = i;
+        break;
+      }
+    }
+    
+    let passwordHash = '';
+    if (usuarioData.Contraseña && usuarioData.Contraseña !== '●●●●●●' && usuarioData.Contraseña.trim() !== '') {
+      passwordHash = hashPassword(usuarioData.Contraseña.trim());
+    }
+    
+    if (rowIndex !== -1) {
+      const rowNum = rowIndex + 1;
+      sheet.getRange(rowNum, nombreIdx + 1).setValue(usuarioData.Nombre);
+      sheet.getRange(rowNum, rolIdx + 1).setValue(usuarioData.Rol);
+      sheet.getRange(rowNum, estadoIdx + 1).setValue(usuarioData.Estado);
+      if (passwordHash) {
+        sheet.getRange(rowNum, hashIdx + 1).setValue(passwordHash);
+      }
+      registrarAuditoria(administrador, 'Administracion', '00_Usuarios', 'UPDATE', cleanInputRut, 'Usuario actualizado: ' + usuarioData.Nombre + ' (Rol: ' + usuarioData.Rol + ')');
+    } else {
+      // Crear nuevo
+      if (!passwordHash) {
+        passwordHash = hashPassword('5tierras123'); // Contraseña por defecto
+      }
+      const newRow = headers.map(h => {
+        if (h === 'RUT_Usuario') return usuarioData.RUT_Usuario;
+        if (h === 'Nombre') return usuarioData.Nombre;
+        if (h === 'Contraseña_Hash') return passwordHash;
+        if (h === 'Rol') return usuarioData.Rol;
+        if (h === 'Estado') return usuarioData.Estado || 'Activo';
+        return '';
+      });
+      sheet.appendRow(newRow);
+      registrarAuditoria(administrador, 'Administracion', '00_Usuarios', 'INSERT', cleanInputRut, 'Nuevo usuario creado: ' + usuarioData.Nombre + ' (Rol: ' + usuarioData.Rol + ')');
+    }
+    
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * Elimina un usuario por su RUT.
+ */
+function eliminarUsuario(rut, administrador) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let sheet = ss.getSheetByName('00_Usuarios');
+    if (!sheet) return { success: false, error: 'Hoja 00_Usuarios no encontrada' };
+    
+    const data = sheet.getDataRange().getValues();
+    const headers = data[0];
+    const rutIdx = headers.indexOf('RUT_Usuario');
+    
+    const cleanInputRut = limpiarRUT(rut);
+    let rowIndex = -1;
+    for (let i = 1; i < data.length; i++) {
+      if (limpiarRUT(data[i][rutIdx]) === cleanInputRut) {
+        rowIndex = i;
+        break;
+      }
+    }
+    
+    if (rowIndex === -1) return { success: false, error: 'Usuario no encontrado' };
+    
+    sheet.deleteRow(rowIndex + 1);
+    registrarAuditoria(administrador, 'Administracion', '00_Usuarios', 'DELETE', cleanInputRut, 'Usuario eliminado: ' + rut);
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * BACKWARDS COMPATIBILITY FOR CLIENT PORTAL
+ * Lee los lotes de un proyecto específico de la tabla Propiedades.
+ */
+function leerLotesProyecto(nombreProyecto) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  
+  // 1. Obtener ID del proyecto buscando por nombre
+  const sheetProyectos = obtenerHoja(ss, 'Proyectos');
+  if (!sheetProyectos) return respError('Tabla "Proyectos" no encontrada', 404);
+  const dataProyectos = sheetProyectos.getDataRange().getValues();
+  if (dataProyectos.length <= 1) return respOk({ lotes: [], total: 0 });
+  
+  const headersProyectos = dataProyectos[0];
+  const idProyIdx = headersProyectos.indexOf('id_proyecto');
+  const nameProyIdx = headersProyectos.indexOf('nombre_proyecto');
+  
+  if (idProyIdx === -1 || nameProyIdx === -1) {
+    return respError('Estructura de tabla Proyectos inválida', 500);
+  }
+  
+  let projectId = null;
+  for (let i = 1; i < dataProyectos.length; i++) {
+    if (String(dataProyectos[i][nameProyIdx]).trim().toLowerCase() === nombreProyecto.trim().toLowerCase()) {
+      projectId = Number(dataProyectos[i][idProyIdx]);
+      break;
+    }
+  }
+  
+  if (projectId === null) {
+    return respError('Proyecto "' + nombreProyecto + '" no encontrado', 404);
+  }
+  
+  // 2. Obtener propiedades vinculadas a id_proyecto
+  const sheetPropiedades = obtenerHoja(ss, 'Propiedades');
+  if (!sheetPropiedades) return respError('Tabla "Propiedades" no encontrada', 404);
+  const dataPropiedades = sheetPropiedades.getDataRange().getValues();
+  if (dataPropiedades.length <= 1) return respOk({ lotes: [], total: 0 });
+  
+  const headersPropiedades = dataPropiedades[0];
+  const propProyIdx = headersPropiedades.indexOf('id_proyecto');
+  const propNombreIdx = headersPropiedades.indexOf('nombre');
+  const propEstadoIdx = headersPropiedades.indexOf('estado');
+  const propPrecioIdx = headersPropiedades.indexOf('valor_final');
+  const propInfraIdx = headersPropiedades.indexOf('infraestructura');
+  
+  if (propProyIdx === -1 || propNombreIdx === -1 || propEstadoIdx === -1 || propPrecioIdx === -1) {
+    return respError('Estructura de tabla Propiedades inválida', 500);
+  }
+  
+  const lotes = [];
+  for (let i = 1; i < dataPropiedades.length; i++) {
+    if (Number(dataPropiedades[i][propProyIdx]) === projectId) {
+      lotes.push({
+        Lote: dataPropiedades[i][propNombreIdx],
+        Estado: dataPropiedades[i][propEstadoIdx],
+        Precio: Number(dataPropiedades[i][propPrecioIdx]) || 0,
+        Comentario: propInfraIdx !== -1 ? dataPropiedades[i][propInfraIdx] || '' : ''
+      });
+    }
+  }
+  
+  return respOk({ lotes: lotes, total: lotes.length });
 }
