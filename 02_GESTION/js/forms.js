@@ -760,26 +760,11 @@ VENDEDOR RESPONSABLE: ${vendedor ? vendedor.nombre : '---'}`
           ${extraRow}
         </div>
       `;
+      // Removed btnVerExpediente and btnCtaCte assignments per user request
 
-      if (estado !== 'Vendida' && estado !== 'Escriturada') {
-        btnVerExpediente = `
-          <button type="button" class="btn btn-primary" onclick="if(window.APP5T) { window.APP5T.closeModal(true); window.APP5T.switchTab('mesa'); }" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px; background-color: var(--accent-blue); border-color: var(--accent-blue); font-size: 0.82rem; padding: 8px 12px;">
-            <i class="fa-solid fa-list-check"></i> Ver en Mesa Documental
-          </button>
-        `;
-      }
-      
-      if (estado === 'Promesada' || estado === 'Venta_Directa') {
-        btnCtaCte = `
-          <button type="button" class="btn btn-info" onclick="if(window.APP5T && window.APP5T.goToCuentaCorriente) window.APP5T.goToCuentaCorriente('${neg.id_cliente}', '${propiedad.id}');" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px; background-color: var(--accent-purple); border-color: var(--accent-purple); color: white; font-size: 0.82rem; padding: 8px 12px;">
-            <i class="fa-solid fa-file-invoice-dollar"></i> Cuenta Corriente
-          </button>
-        `;
-      }
-      
       if (estado === 'Vendida' || estado === 'Escriturada') {
         btnEscritura = `
-          <button type="button" id="btn-ver-escritura" class="btn btn-outline" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px; border-color: var(--accent-green); color: var(--accent-green); font-size: 0.82rem; padding: 8px 12px;">
+          <button type="button" id="btn-ver-escritura" class="btn btn-outline" onclick="if('${propiedad.url || ''}') window.open('${propiedad.url}', '_blank'); else APP5T_Utils.showToast('No hay enlace de Drive configurado para este lote', 'warning');" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px; border-color: var(--accent-green); color: var(--accent-green); font-size: 0.82rem; padding: 8px 12px;">
             <i class="fa-solid fa-file-signature"></i> Ver Copia Escritura
           </button>
         `;
@@ -833,43 +818,6 @@ VENDEDOR RESPONSABLE: ${vendedor ? vendedor.nombre : '---'}`
     const adminCardEl = tempDiv.firstElementChild;
     container.insertBefore(adminCardEl, container.firstChild);
 
-    // Bind click for Escritura button if it exists
-    const btnVerEscrituraEl = container.querySelector('#btn-ver-escritura');
-    if (btnVerEscrituraEl) {
-      btnVerEscrituraEl.addEventListener('click', () => {
-        let urlReal = null;
-        if (propiedad.url && propiedad.url.trim() !== '') {
-          urlReal = propiedad.url;
-        } else if (typeof APP5T_DB !== 'undefined') {
-          const docsLote = APP5T_DB.query('documentos', d => String(d.id_propiedad) === String(propiedad.id)) || [];
-          const doc = docsLote.find(d => 
-            String(d.nombre || '').toLowerCase().includes('escritura') || 
-            String(d.tipo_documento || '').toLowerCase().includes('escritura')
-          );
-          if (doc && doc.url_drive) urlReal = doc.url_drive;
-        }
-        
-        if (urlReal) {
-          window.open(urlReal, '_blank');
-        } else {
-          const etapa = propiedad.id_etapa ? APP5T_DB.getById('etapas', propiedad.id_etapa) : null;
-          const proy = etapa ? APP5T_DB.getById('proyectos', etapa.id_proyecto) : null;
-          const proyectoNom = proy ? (proy.nombre_proyecto || proy.nombre || '') : '—';
-          const precioVentaFmt = APP5T_Utils.formatMoneda(neg ? neg.valor_final : (propiedad.valor_final || 0));
-          const cli = neg ? APP5T_DB.getById('clientes', neg.id_cliente) : null;
-          
-          _showSimulatedPDF(
-            `Escritura Definitiva — Lote ${propiedad.nombre}`, 
-            'escritura', 
-            propiedad, 
-            neg, 
-            cli, 
-            proyectoNom, 
-            precioVentaFmt
-          );
-        }
-      });
-    }
   }
   
   function _renderFichaGerencial(container, propiedad, neg, isApprovalQueue = false) {
@@ -991,18 +939,9 @@ VENDEDOR RESPONSABLE: ${vendedor ? vendedor.nombre : '---'}`
             </button>
 
             ${neg && !neg.autorizado_promesa ? `
-              ${neg.ficha_abogado_generada ? `
                 <button type="button" id="btn-gerente-autorizar-promesa-ficha" class="btn btn-warning" style="width: 100%; padding: 12px; font-size: 0.9rem; font-weight: bold; color: #fff; background-color: var(--accent-orange, #f39c12); border: none; border-radius: 6px; box-shadow: 0 4px 6px rgba(243,156,18,0.3); display: flex; align-items: center; justify-content: center; gap: 6px;">
                   <i class="fa-solid fa-file-signature"></i> Autorizar Firma Notaría
                 </button>
-              ` : `
-                <button type="button" id="btn-gerente-autorizar-promesa-ficha-blocked" class="btn btn-warning" style="width: 100%; padding: 12px; font-size: 0.9rem; font-weight: bold; color: #fff; background-color: var(--accent-orange, #f39c12); border: none; border-radius: 6px; opacity: 0.5; cursor: not-allowed; display: flex; align-items: center; justify-content: center; gap: 6px;" disabled>
-                  <i class="fa-solid fa-lock" id="icon-gerente-autorizar-bloqueado"></i> <span id="text-gerente-autorizar-bloqueado">Autorizar Firma Notaría (Bloqueado)</span>
-                </button>
-                <div id="lbl-gerente-autorizar-bloqueado" style="font-size:0.75rem; color:var(--accent-orange); text-align:center;">
-                  * Debes descargar la Ficha Abogado primero para habilitar la autorización.
-                </div>
-              `}
             ` : (neg && neg.autorizado_promesa ? `
               <button type="button" class="btn btn-warning" style="width: 100%; padding: 12px; font-size: 0.9rem; font-weight: bold; color: #fff; background-color: var(--accent-orange, #f39c12); border: none; border-radius: 6px; opacity: 0.5; cursor: not-allowed; display: flex; align-items: center; justify-content: center; gap: 6px;" disabled>
                 <i class="fa-solid fa-check-double"></i> Promesa Autorizada para Notaría
@@ -1018,7 +957,7 @@ VENDEDOR RESPONSABLE: ${vendedor ? vendedor.nombre : '---'}`
       `;
       } else if (estado === 'Vendida' || estado === 'Escriturada') {
         btnComprobanteHTML = `
-          <button type="button" id="btn-ver-escritura" class="btn btn-outline" style="width: 100%; font-size: 0.8rem; padding: 6px; border-color: var(--accent-green); color: var(--accent-green); display: flex; align-items: center; justify-content: center; gap: 4px;">
+          <button type="button" id="btn-ver-escritura" class="btn btn-outline" onclick="if('${propiedad.url || ''}') window.open('${propiedad.url}', '_blank'); else APP5T_Utils.showToast('No hay enlace de Drive configurado para este lote', 'warning');" style="width: 100%; font-size: 0.8rem; padding: 6px; border-color: var(--accent-green); color: var(--accent-green); display: flex; align-items: center; justify-content: center; gap: 4px;">
             <i class="fa-solid fa-file-signature"></i> Ver Copia Escritura
           </button>
         `;
@@ -1078,9 +1017,16 @@ VENDEDOR RESPONSABLE: ${vendedor ? vendedor.nombre : '---'}`
             ${hitoDesc}
           </p>
           
-          <div style="margin-top: 12px; display: flex; flex-direction: column; gap: 8px;">
-            ${btnComprobanteHTML}
+          ${btnComprobanteHTML ? `
+          <div style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 12px;">
+            <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px; letter-spacing: 0.05em; display: flex; align-items: center; gap: 6px;">
+              <i class="fa-solid fa-bolt"></i> Accesos Rápidos (Fase: ${estado})
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              ${btnComprobanteHTML}
+            </div>
           </div>
+          ` : ''}
         </div>
       </div>
     `;
@@ -1099,37 +1045,6 @@ VENDEDOR RESPONSABLE: ${vendedor ? vendedor.nombre : '---'}`
             
             // Update button UI
             btnFichaAbogado.innerHTML = '<i class="fa-solid fa-file-pdf"></i> ✔ Ficha Abogado Descargada';
-            
-            const btnBlocked = container.querySelector('#btn-gerente-autorizar-promesa-ficha-blocked');
-            if (btnBlocked) {
-              btnBlocked.id = 'btn-gerente-autorizar-promesa-ficha';
-              btnBlocked.removeAttribute('disabled');
-              btnBlocked.style.opacity = '1';
-              btnBlocked.style.cursor = 'pointer';
-              
-              const icon = btnBlocked.querySelector('#icon-gerente-autorizar-bloqueado');
-              if (icon) icon.className = 'fa-solid fa-file-signature';
-              
-              const text = btnBlocked.querySelector('#text-gerente-autorizar-bloqueado');
-              if (text) text.textContent = 'Autorizar Firma Notaría';
-              
-              // Attach the active click event to this newly unblocked button
-              btnBlocked.addEventListener('click', () => {
-                if (!confirm('¿Confirma que se ha firmado en notaría y autoriza continuar el proceso de promesa?')) return;
-                const res = APP5T_DB.autorizarPromesa(neg.id);
-                if (res && !res.success) {
-                  APP5T_Utils.showToast("Error: " + res.error, 'error');
-                  return;
-                }
-                APP5T_Utils.showToast('Promesa autorizada correctamente', 'success');
-                if (window.APP5T && window.APP5T.closeModal) window.APP5T.closeModal(true);
-                if (window.APP5T && window.APP5T.switchTab) window.APP5T.switchTab('aprobaciones');
-                if (window.APP5T && window.APP5T.refreshAll) window.APP5T.refreshAll();
-              });
-            }
-            
-            const lblBlocked = container.querySelector('#lbl-gerente-autorizar-bloqueado');
-            if (lblBlocked) lblBlocked.style.display = 'none';
           }
         });
       }
@@ -1229,33 +1144,7 @@ VENDEDOR RESPONSABLE: ${vendedor ? vendedor.nombre : '---'}`
       });
     }
 
-    const btnVerEscritura = container.querySelector('#btn-ver-escritura');
-    if (btnVerEscritura) {
-      btnVerEscritura.addEventListener('click', () => {
-        let urlReal = null;
-        if (propiedad.url && propiedad.url.trim() !== '') {
-          urlReal = propiedad.url;
-        } else if (typeof APP5T_DB !== 'undefined') {
-          const docsLote = APP5T_DB.query('documentos', d => String(d.id_propiedad) === String(propiedad.id)) || [];
-          const doc = docsLote.find(d => 
-            String(d.nombre || '').toLowerCase().includes('escritura') || 
-            String(d.tipo_documento || '').toLowerCase().includes('escritura')
-          );
-          if (doc && doc.url_drive) {
-            urlReal = doc.url_drive;
-          } else {
-            const folder = docsLote.find(d => String(d.tipo_documento || '').toLowerCase() === 'carpeta');
-            if (folder && folder.url_drive) urlReal = folder.url_drive;
-          }
-        }
-        
-        if (urlReal) {
-          window.open(urlReal, '_blank');
-        } else {
-          APP5T_Utils.showToast('Enlace de Drive no configurado para este lote. Añádelo en el Catálogo Documental.', 'warning');
-        }
-      });
-    }
+
   }
 
   function _appendDriveDocuments(container, propiedad) {
@@ -1272,29 +1161,27 @@ VENDEDOR RESPONSABLE: ${vendedor ? vendedor.nombre : '---'}`
 
     if (hasDocs) {
       let docsHtml = `
-        <div class="lote-ficha" style="margin-top: 12px; padding: 10px; background: rgba(255,255,255,0.01); border: 1px solid var(--glass-border); border-radius: 8px;">
+        <div class="lote-ficha smart-toolbar" style="margin-bottom: 12px; padding: 12px; background: rgba(52, 152, 219, 0.05); border: 1px solid rgba(52, 152, 219, 0.2); border-radius: 8px;">
           <div class="lote-ficha-header" style="margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
-            <i class="fa-brands fa-google-drive" style="color: var(--accent-blue); font-size: 1.1rem;"></i>
-            <h4 style="margin: 0; font-size: 0.88rem; font-weight: 700;">Documentos en Drive</h4>
+            <i class="fa-solid fa-bolt" style="color: var(--accent-blue); font-size: 1.1rem;"></i>
+            <h4 style="margin: 0; font-size: 0.88rem; font-weight: 700; color: var(--accent-blue);">Accesos Rápidos (Fase: ${propiedad.estado})</h4>
           </div>
-          <div style="display: flex; flex-direction: column; gap: 6px;">`;
+          <div style="display: flex; flex-direction: row; flex-wrap: wrap; gap: 10px;">`;
           
       if (propiedad.url && propiedad.url.trim() !== '') {
         docsHtml += `
-          <a href="${propiedad.url}" target="_blank" style="display: flex; align-items: center; justify-content: space-between; text-decoration: none; font-size: 0.78rem; color: var(--accent-green); background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); padding: 5px 8px; border-radius: 4px;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='rgba(255,255,255,0.02)'">
-            <span><i class="fa-solid fa-file-contract" style="margin-right: 6px;"></i> Documento Principal (Drive)</span>
-            <i class="fa-solid fa-external-link" style="font-size: 0.65rem; color: var(--text-dim);"></i>
+          <a href="${propiedad.url}" target="_blank" class="btn btn-sm btn-outline" style="color: var(--accent-green); border-color: var(--accent-green);">
+            <i class="fa-solid fa-file-contract"></i> Doc Principal
           </a>`;
       }
       
       if (neg && neg.url && neg.url.trim() !== '') {
-        let docTitle = neg.id_proceso === 'Promesa' ? 'Contrato de Promesa' : 'Recibo / Ficha';
+        let docTitle = neg.id_proceso === 'Promesa' ? 'Promesa' : 'Ficha / Recibo';
         let docIcon = neg.id_proceso === 'Promesa' ? 'fa-file-signature' : 'fa-receipt';
         let docColor = neg.id_proceso === 'Promesa' ? 'var(--accent-purple)' : 'var(--text-white)';
         docsHtml += `
-          <a href="${neg.url}" target="_blank" style="display: flex; align-items: center; justify-content: space-between; text-decoration: none; font-size: 0.78rem; color: ${docColor}; background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); padding: 5px 8px; border-radius: 4px;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='rgba(255,255,255,0.02)'">
-            <span><i class="fa-solid ${docIcon}" style="margin-right: 6px;"></i> ${docTitle}</span>
-            <i class="fa-solid fa-external-link" style="font-size: 0.65rem; color: var(--text-dim);"></i>
+          <a href="${neg.url}" target="_blank" class="btn btn-sm btn-outline" style="color: ${docColor}; border-color: ${docColor};">
+            <i class="fa-solid ${docIcon}"></i> ${docTitle}
           </a>`;
       }
       
@@ -1307,16 +1194,19 @@ VENDEDOR RESPONSABLE: ${vendedor ? vendedor.nombre : '---'}`
         else if (d.tipo_documento === 'Carpeta') { icon = 'fa-folder-open'; color = 'var(--accent-orange)'; }
         
         docsHtml += `
-          <a href="${d.url_drive}" target="_blank" style="display: flex; align-items: center; justify-content: space-between; text-decoration: none; font-size: 0.78rem; color: var(--text-white); background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); padding: 5px 8px; border-radius: 4px;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='rgba(255,255,255,0.02)'">
-            <span><i class="fa-solid ${icon}" style="color: ${color}; margin-right: 6px;"></i> ${d.nombre}</span>
-            <i class="fa-solid fa-external-link" style="font-size: 0.65rem; color: var(--text-dim);"></i>
+          <a href="${d.url_drive}" target="_blank" class="btn btn-sm btn-outline" style="color: ${color}; border-color: ${color};">
+            <i class="fa-solid ${icon}"></i> ${d.nombre}
           </a>`;
       });
       docsHtml += `</div></div>`;
       
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = docsHtml.trim();
-      container.appendChild(tempDiv.firstElementChild);
+      if (container.firstChild) {
+        container.insertBefore(tempDiv.firstElementChild, container.firstChild);
+      } else {
+        container.appendChild(tempDiv.firstElementChild);
+      }
     }
   }
 
@@ -1376,10 +1266,19 @@ VENDEDOR RESPONSABLE: ${vendedor ? vendedor.nombre : '---'}`
         const vendedoresOptions = vendedores.map(v => `<option value="${v.id}">${v.nombre}</option>`).join('');
 
         container.innerHTML = `
-          <form id="frm-direct-assignment" class="lote-ficha accent-success" style="padding: 12px; font-size: 0.8rem; border-radius: 8px;">
+          <!-- FICHA INFORMATIVA -->
+          <div id="gerente-ficha-info" style="padding:12px; font-size:0.8rem; text-align:center;">
+            <p style="margin-bottom: 15px; color: var(--text-dim); font-size: 0.85rem;">Selecciona una acción para este lote Disponible:</p>
+            <button type="button" onclick="document.getElementById('gerente-ficha-info').style.display='none'; document.getElementById('frm-direct-assignment').style.display='block';" class="btn btn-primary" style="width:100%; margin-bottom:8px; padding:10px; font-weight:600;"><i class="fa-solid fa-bolt"></i> Nueva Venta Directa</button>
+            <button type="button" id="btn-gerente-bloquear-info" class="btn btn-outline" style="width:100%; padding:10px; border-color:var(--text-dim); color:var(--text-dim);"><i class="fa-solid fa-lock"></i> Bloquear Propiedad</button>
+          </div>
+
+          <!-- FORMULARIO DE VENTA DIRECTA (Oculto por defecto) -->
+          <form id="frm-direct-assignment" class="lote-ficha accent-success" style="padding: 12px; font-size: 0.8rem; border-radius: 8px; display:none;">
             <div class="lote-ficha-header" style="margin-bottom: 8px; display:flex; align-items:center; gap:6px;">
+              <button type="button" id="btn-volver-info" style="background:none; border:none; color:var(--text-dim); cursor:pointer;"><i class="fa-solid fa-arrow-left"></i></button>
               <i class="fa-solid fa-bolt" style="color:var(--accent-orange); font-size:1.15rem;"></i>
-              <h4 style="margin:0; font-size: 0.9rem; font-weight:700;">Asignación Directa y Cierre</h4>
+              <h4 style="margin:0; font-size: 0.9rem; font-weight:700;">Venta Directa</h4>
             </div>
 
             <!-- Client section -->
@@ -1423,25 +1322,16 @@ VENDEDOR RESPONSABLE: ${vendedor ? vendedor.nombre : '---'}`
               </select>
             </div>
 
-            <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-              <div class="form-group" id="group-precio_oferta" style="flex:1;">
-                <label style="font-size:0.75rem; font-weight:600; color:var(--text-dim); display:block; margin-bottom:2px;">Precio Venta *</label>
-                <input type="text" name="precio_oferta" class="form-control" value="${precioFmt}" required style="width:100%; padding:6px 8px; font-size:0.8rem; background:rgba(255,255,255,0.03); border:1px solid var(--glass-border); border-radius:4px; color:var(--text-white);">
-              </div>
-              <div class="form-group" id="group-monto_reserva" style="flex:1;">
-                <label style="font-size:0.75rem; font-weight:600; color:var(--text-dim); display:block; margin-bottom:2px;">Monto Reserva</label>
-                <input type="text" name="monto_reserva" class="form-control" value="${abonoFmt}" style="width:100%; padding:6px 8px; font-size:0.8rem; background:rgba(255,255,255,0.03); border:1px solid var(--glass-border); border-radius:4px; color:var(--text-white);">
-              </div>
-              <div class="form-group" id="group-cantidad_cuotas" style="flex:1;">
-                <label style="font-size:0.75rem; font-weight:600; color:var(--text-dim); display:block; margin-bottom:2px;">Cant. Cuotas (Financ.)</label>
-                <input type="number" name="cantidad_cuotas" class="form-control" placeholder="Ej: 12" min="1" max="120" style="width:100%; padding:6px 8px; font-size:0.8rem; background:rgba(255,255,255,0.03); border:1px solid var(--glass-border); border-radius:4px; color:var(--text-white);">
-              </div>
+            <div class="form-group" id="group-precio_oferta" style="margin-bottom: 8px;">
+              <label style="font-size:0.75rem; font-weight:600; color:var(--text-dim); display:block; margin-bottom:2px;">Precio Venta *</label>
+              <input type="text" name="precio_oferta" class="form-control" value="${precioFmt}" required style="width:100%; padding:6px 8px; font-size:0.8rem; background:rgba(255,255,255,0.03); border:1px solid var(--glass-border); border-radius:4px; color:var(--text-white);" >
+              <button type="button" id="btn-actualizar-precio-base" style="margin-top:6px; padding:3px 6px; font-size:0.65rem; background:transparent; border:1px solid var(--accent-blue); color:var(--accent-blue); border-radius:3px; cursor:pointer; width:100%;"><i class="fa-solid fa-sync"></i> Guardar Precio Base</button>
             </div>
 
             <div class="form-group" id="group-metodo_pago" style="margin-bottom: 8px;">
               <label style="font-size:0.75rem; font-weight:600; color:var(--text-dim); display:block; margin-bottom:2px;">Método de Pago</label>
               <select name="metodo_pago" class="form-control" style="width:100%; padding:6px 8px; font-size:0.8rem; background:rgba(255,255,255,0.03); border:1px solid var(--glass-border); border-radius:4px; color:var(--text-white);">
-                <option>Transferencia</option><option>Depósito</option><option>Cheque</option>
+                <option>Transferencia</option><option>Vale Vista</option><option>Depósito</option><option>Cheque</option><option>Contado</option>
               </select>
             </div>
 
@@ -1450,13 +1340,7 @@ VENDEDOR RESPONSABLE: ${vendedor ? vendedor.nombre : '---'}`
               <textarea name="notas" class="form-control" rows="2" placeholder="Notas sobre el cierre..." style="width:100%; padding:6px 8px; font-size:0.8rem; background:rgba(255,255,255,0.03); border:1px solid var(--glass-border); border-radius:4px; color:var(--text-white); font-family:inherit; resize:vertical;"></textarea>
             </div>
 
-            <!-- Action buttons -->
-            <div style="display:flex; gap:8px;">
-              <button type="button" id="btn-gerente-reserva" class="btn btn-success" style="flex:1; font-size:0.78rem; padding: 8px; display:flex; align-items:center; justify-content:center; gap:4px;"><i class="fa-solid fa-money-bill-wave"></i> Registrar Reserva</button>
-              <button type="button" id="btn-gerente-venta" class="btn btn-outline" style="flex:1; font-size:0.78rem; padding: 8px; border-color:var(--accent-purple); color:var(--accent-purple); display:flex; align-items:center; justify-content:center; gap:4px;"><i class="fa-solid fa-bolt"></i> Venta Directa</button>
-            </div>
-            
-            <button type="button" id="btn-gerente-bloquear" class="btn btn-outline" style="width: 100%; font-size:0.78rem; padding: 6px; border-color:var(--text-dim); color:var(--text-dim); margin-top:8px; display:flex; align-items:center; justify-content:center; gap:4px;"><i class="fa-solid fa-lock"></i> Bloquear Propiedad</button>
+            <button type="button" id="btn-gerente-venta" class="btn btn-success" style="width: 100%; font-size:0.85rem; padding: 10px; display:flex; align-items:center; justify-content:center; gap:6px; font-weight:600;"><i class="fa-solid fa-check-circle"></i> Cerrar Venta Directa</button>
           </form>
         `;
 
@@ -1753,50 +1637,24 @@ VENDEDOR RESPONSABLE: ${vendedor ? vendedor.nombre : '---'}`
           return dirAuth ? dirAuth.id : 0;
         }
 
-        // Action: Registrar Reserva
-        container.querySelector('#btn-gerente-reserva').addEventListener('click', () => {
-          const cData = _validateForm();
-          if (!cData) return;
-
-          const idVendedor = parseInt(formEl.querySelector('[name="id_vendedor"]').value, 10);
-          if (!idVendedor || isNaN(idVendedor)) {
-            APP5T_Utils.showToast('Seleccione un vendedor válido de la lista', 'warning');
-            return;
-          }
-          const idCliente = _getOrCreateClient(cData, idVendedor);
-          if (!idCliente) return;
-
-          const payload = {
-            valor_final:     APP5T_Utils.parseMoneda(formEl.querySelector('[name="precio_oferta"]').value),
-            pie:             APP5T_Utils.parseMoneda(formEl.querySelector('[name="monto_reserva"]').value),
-            cantidad_cuotas: Number(formEl.querySelector('[name="cantidad_cuotas"]').value) || 0,
-            metodo_pago:     formEl.querySelector('[name="metodo_pago"]').value,
-            notas:           formEl.querySelector('[name="notas"]').value,
-            tipo_operacion:  'Reserva'
-          };
-
-          const solRes = APP5T_DB.solicitarReserva(propiedad.id, idVendedor, idCliente, payload);
-          if (solRes && !solRes.success) {
-            APP5T_Utils.showToast(`Error al crear negocio: ${solRes.error}`, 'error');
-            return;
-          }
-
-          const idDir = _findDirectorId();
-          const appRes = APP5T_DB.aprobarReserva(solRes.id_negociacion, idDir);
-          if (appRes && !appRes.success) {
-            APP5T_Utils.showToast(`Error al autorizar reserva: ${appRes.error}`, 'error');
-            return;
-          }
-
-          APP5T_Utils.showToast('Reserva registrada y aprobada de inmediato', 'success');
-          const wPhone = '+56972154441';
-          const wClientName = cData.nombres ? cData.nombres + ' ' + cData.apellidos : cData.rut;
-          const wOpName = 'Reserva';
-          const wText = encodeURIComponent('Hola, acabo de ingresar una solicitud de ' + wOpName + ' para el lote ' + propiedad.nombre + ' a nombre de ' + wClientName + '.');
-          window.open('https://wa.me/' + wPhone + '?text=' + wText, '_blank');
-          if (window.APP5T && window.APP5T.refreshAll) window.APP5T.refreshAll();
-          window.APP5T.closeModal(true);
-        });
+        const btnActualizarPrecio = container.querySelector('#btn-actualizar-precio-base');
+        if (btnActualizarPrecio) {
+          btnActualizarPrecio.addEventListener('click', () => {
+            const nuevoPrecio = APP5T_Utils.parseMoneda(formEl.querySelector('[name="precio_oferta"]').value);
+            if (!nuevoPrecio || nuevoPrecio <= 0) {
+              APP5T_Utils.showToast('Ingrese un precio válido antes de guardar.', 'warning');
+              return;
+            }
+            if (confirm(`¿Estás seguro de modificar el precio base oficial de este lote a ${APP5T_Utils.formatMoneda(nuevoPrecio)}?`)) {
+              const res = APP5T_DB.update('propiedades', propiedad.id, { valor_final: nuevoPrecio });
+              if (res && res.success) {
+                APP5T_Utils.showToast('Precio base actualizado correctamente en el sistema.', 'success');
+              } else {
+                APP5T_Utils.showToast('Error al actualizar precio base.', 'error');
+              }
+            }
+          });
+        }
 
         // Action: Venta Directa
         container.querySelector('#btn-gerente-venta').addEventListener('click', () => {
@@ -1814,7 +1672,7 @@ VENDEDOR RESPONSABLE: ${vendedor ? vendedor.nombre : '---'}`
           const payload = {
             valor_final:     APP5T_Utils.parseMoneda(formEl.querySelector('[name="precio_oferta"]').value),
             pie:             0,
-            cantidad_cuotas: Number(formEl.querySelector('[name="cantidad_cuotas"]').value) || 0,
+            cantidad_cuotas: 0,
             metodo_pago:     formEl.querySelector('[name="metodo_pago"]').value,
             notas:           formEl.querySelector('[name="notas"]').value,
             tipo_operacion:  'Venta_Directa'
@@ -1844,7 +1702,7 @@ VENDEDOR RESPONSABLE: ${vendedor ? vendedor.nombre : '---'}`
         });
 
         // Action: Bloquear Propiedad
-        container.querySelector('#btn-gerente-bloquear').addEventListener('click', () => {
+        container.querySelector('#btn-gerente-bloquear-info').addEventListener('click', () => {
           const confirmMsg = `¿Desea bloquear administrativamente el lote ${propiedad.nombre}? Quedará retirado de la venta pública.`;
           if (!confirm(confirmMsg)) return;
 
@@ -1855,6 +1713,23 @@ VENDEDOR RESPONSABLE: ${vendedor ? vendedor.nombre : '---'}`
           if (window.APP5T && window.APP5T.refreshAll) window.APP5T.refreshAll();
           window.APP5T.closeModal(true);
         });
+
+        // Toggle Views
+        const btnNuevaVenta = container.querySelector('#btn-nueva-venta-directa');
+        if (btnNuevaVenta) {
+          btnNuevaVenta.addEventListener('click', () => {
+            container.querySelector('#gerente-ficha-info').style.display = 'none';
+            container.querySelector('#frm-direct-assignment').style.display = 'block';
+          });
+        }
+        
+        const btnVolverInfo = container.querySelector('#btn-volver-info');
+        if (btnVolverInfo) {
+          btnVolverInfo.addEventListener('click', () => {
+            container.querySelector('#gerente-ficha-info').style.display = 'block';
+            container.querySelector('#frm-direct-assignment').style.display = 'none';
+          });
+        }
 
         return;
       } else {
@@ -1907,16 +1782,16 @@ VENDEDOR RESPONSABLE: ${vendedor ? vendedor.nombre : '---'}`
             ${_group('Comuna', `<input type="text" name="new_comuna" class="form-control" placeholder="Ej: Santiago">`, 'new_comuna')}
             ${_group('Teléfono *', `<input type="tel" name="new_telefono" class="form-control" placeholder="Ej: +56 9 1234 5678" required>`, 'new_telefono')}
             ${_group('Correo Electrónico *', `<input type="email" name="new_email" class="form-control" placeholder="Ej: juan.perez@email.com" required>`, 'new_email')}
-            ${_group('Estado Civil', `<select name="new_estado_civil" class="form-control">
-              <option value="">Seleccione...</option><option value="Soltero">Soltero</option><option value="Casado">Casado</option><option value="Viudo">Viudo</option><option value="Separado">Separado</option>
+            ${_group('Estado Civil', `<select name="new_estado_civil" class="form-control" onchange="const reg = (this.closest('.modal-body') || document).querySelector('[name=new_regimen_matrimonial]'); if(reg) { reg.disabled = (this.value !== 'Casado'); if(this.value !== 'Casado') reg.value = ''; }">
+              <option value="">Seleccione...</option><option value="Soltero">Soltero</option><option value="Casado">Casado</option><option value="Viudo">Viudo</option><option value="Divorciado">Divorciado</option>
             </select>`, 'new_estado_civil')}
-            ${_group('Régimen Matrimonial', `<select name="new_regimen_matrimonial" class="form-control">
+            ${_group('Régimen Matrimonial', `<select name="new_regimen_matrimonial" class="form-control" disabled>
               <option value="">Seleccione...</option><option value="Sociedad Conyugal">Sociedad Conyugal</option><option value="Separación de Bienes">Separación de Bienes</option><option value="Participación en los Gananciales">Participación en los Gananciales</option>
             </select>`, 'new_regimen_matrimonial')}
 
             <h5 style="margin-top:20px; margin-bottom:12px; font-weight:700; color:var(--text-white); border-bottom: 1px solid var(--glass-border); padding-bottom: 6px; font-size: 0.8rem; text-transform: uppercase;"><i class="fa-solid fa-money-bill-wave"></i> Datos de la Oferta</h5>
-            ${_group('Precio Ofertado', `<input type="text" name="precio_oferta" class="form-control" value="${precioFmt}">`, 'precio_oferta')}
-            <div style="display: flex; gap: 8px;">
+            ${_group('Precio Ofertado', `<input type="text" name="precio_oferta" class="form-control" value="${precioFmt}" ${((window.APP5T_Sync && APP5T_Sync.session && APP5T_Sync.session.rol) ? APP5T_Sync.session.rol.toLowerCase() : 'vendedor') === 'vendedor' ? 'readonly title="Solo el gerente puede editar el precio" style="background-color: #e9ecef; cursor: not-allowed;"' : ''}>`, 'precio_oferta')}
+            <div style="display: flex; gap: 8px; align-items: flex-end;">
               <div style="flex: 1;">
                 ${_group('Monto Pie / Anticipo', `<input type="text" name="monto_reserva" class="form-control" value="$ 0">`, 'monto_reserva')}
               </div>
@@ -1928,7 +1803,7 @@ VENDEDOR RESPONSABLE: ${vendedor ? vendedor.nombre : '---'}`
               <option>Transferencia</option><option>Depósito</option><option>Cheque</option>
             </select>`, 'metodo_pago')}
             ${_group('Notas', `<textarea name="notas" class="form-control" rows="3" placeholder="Observaciones adicionales..."></textarea>`, 'notas')}
-            
+
             <button type="submit" id="frm-pre-reserva-btn" class="btn btn-success" style="width: 100%; margin-top: 10px;"><i class="fa-solid fa-paper-plane"></i> Enviar Solicitud de Reserva</button>
           </form>
         `;
@@ -2026,7 +1901,11 @@ VENDEDOR RESPONSABLE: ${vendedor ? vendedor.nombre : '---'}`
               inp.value = val;
               // Trigger autofill highlight animation
               const group = inp.closest('.form-group');
-              if (group && name !== 'new_rut') {
+              if (name === 'new_rut') {
+                 inp.setAttribute('readonly', true);
+                 inp.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+                 inp.style.cursor = 'not-allowed';
+              } else if (group) {
                 group.classList.add('autofill-highlight');
                 setTimeout(() => group.classList.remove('autofill-highlight'), 1200);
               }
@@ -2060,6 +1939,12 @@ VENDEDOR RESPONSABLE: ${vendedor ? vendedor.nombre : '---'}`
             const inp = frm.querySelector(`[name="${name}"]`);
             if (inp) inp.value = '';
           });
+          const rutInp = frm.querySelector('[name="new_rut"]');
+          if (rutInp) {
+              rutInp.removeAttribute('readonly');
+              rutInp.style.backgroundColor = 'rgba(255,255,255,0.03)';
+              rutInp.style.cursor = 'text';
+          }
           bannerSlot.innerHTML = '';
         }
 
@@ -2342,27 +2227,57 @@ VENDEDOR RESPONSABLE: ${vendedor ? vendedor.nombre : '---'}`
 
             const operacionVal = frm.querySelector('input[name="tipo_operacion"]:checked') ? frm.querySelector('input[name="tipo_operacion"]:checked').value : 'Reserva';
             const esVentaDirecta = (operacionVal === 'Venta_Directa');
-            const payload = {
-              valor_final:     APP5T_Utils.parseMoneda(frm.querySelector('[name="precio_oferta"]').value),
-              pie:             esVentaDirecta ? 0 : APP5T_Utils.parseMoneda(frm.querySelector('[name="monto_reserva"]').value),
-              cantidad_cuotas: Number(frm.querySelector('[name="cantidad_cuotas"]').value) || 0,
-              metodo_pago:     frm.querySelector('[name="metodo_pago"]').value,
-              notas:           frm.querySelector('[name="notas"]').value,
-              tipo_operacion:  operacionVal
+            
+            // Archivo adjunto (Comprobante)
+            let comprobanteUrl = '';
+            const fileInput = frm.querySelector('#comprobante_b64_input');
+            
+            const submitPayload = () => {
+              const payload = {
+                valor_final:     APP5T_Utils.parseMoneda(frm.querySelector('[name="precio_oferta"]').value),
+                pie:             esVentaDirecta ? 0 : APP5T_Utils.parseMoneda(frm.querySelector('[name="monto_reserva"]').value),
+                cantidad_cuotas: Number(frm.querySelector('[name="cantidad_cuotas"]').value) || 0,
+                metodo_pago:     frm.querySelector('[name="metodo_pago"]').value,
+                notas:           frm.querySelector('[name="notas"]').value,
+                tipo_operacion:  operacionVal,
+                comprobante_url: comprobanteUrl
+              };
+
+              const res = APP5T_DB.solicitarReserva(propiedad.id, idVendedor, idCliente, payload);
+              if (res && !res.success) {
+                APP5T_Utils.showToast(`Error al solicitar habilitación: ${res.error || 'Desconocido'}`, 'error');
+                return;
+              }
+
+              // BRUTE FORCE SAVE TO BYPASS CACHE
+              if (comprobanteUrl && res && res.success) {
+                try {
+                  const negKey = 'APP5T_negociaciones';
+                  let rawItems = localStorage.getItem(negKey);
+                  if (rawItems) {
+                    let items = JSON.parse(rawItems);
+                    let found = items.find(x => x.id === res.id_negociacion);
+                    if (found) {
+                      found.comprobante_url = comprobanteUrl;
+                      localStorage.setItem(negKey, JSON.stringify(items));
+                    }
+                  }
+                } catch(e) {
+                  console.error('Brute force save error:', e);
+                }
+              }
+              
+              const msgToast = esVentaDirecta
+                ? 'Solicitud de Venta Directa enviada al Gerente ⚡'
+                : 'Habilitación de reserva solicitada al Gerente';
+              APP5T_Utils.showToast(msgToast, 'success');
+              if (window.APP5T && window.APP5T._sendWhatsAppGerencia) { window.APP5T._sendWhatsAppGerencia(res.id_negociacion, propiedad.id, idCliente); }
+              if (window.APP5T && window.APP5T.refreshAll) window.APP5T.refreshAll();
+              window.APP5T.closeModal(true);
             };
 
-            const res = APP5T_DB.solicitarReserva(propiedad.id, idVendedor, idCliente, payload);
-            if (res && !res.success) {
-              APP5T_Utils.showToast(`Error al solicitar habilitación: ${res.error || 'Desconocido'}`, 'error');
-              return;
-            }
-            const msgToast = esVentaDirecta
-              ? 'Solicitud de Venta Directa enviada al Gerente ⚡'
-              : 'Habilitación de reserva solicitada al Gerente';
-            APP5T_Utils.showToast(msgToast, 'success');
-              if (window.APP5T && window.APP5T._sendWhatsAppGerencia) { window.APP5T._sendWhatsAppGerencia(res.id_negociacion, propiedad.id, idCliente); }
-            if (window.APP5T && window.APP5T.refreshAll) window.APP5T.refreshAll();
-            window.APP5T.closeModal(true);
+            submitPayload();
+
           } catch (err) {
             console.error(err);
             alert(`Error al solicitar habilitación: ${err.message}`);
@@ -2397,7 +2312,16 @@ VENDEDOR RESPONSABLE: ${vendedor ? vendedor.nombre : '---'}`
             <div class="info-item"><span class="info-label">Precio Final</span><span class="info-value">${precioOf}</span></div>
             <div class="info-item"><span class="info-label">Margen</span><span class="info-value">${margen}%</span></div>
           </div>
-          <div style="margin-top: 15px;">
+          <div style="margin-top: 15px; display: flex; flex-direction: column; gap: 8px;">
+            ${neg && neg.comprobante_url ? `
+              <button type="button" class="btn btn-outline" onclick="APP5T_Forms._verComprobanteB64('${neg.id}')" style="width: 100%; border-color: var(--accent-blue); color: var(--accent-blue); display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px;">
+                <i class="fa-solid fa-eye"></i> Ver Comprobante
+              </button>
+            ` : `
+              <button type="button" class="btn btn-outline" disabled style="width: 100%; border-color: var(--glass-border); color: var(--text-dim); display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px; cursor: not-allowed; opacity: 0.7;">
+                <i class="fa-solid fa-eye-slash"></i> Sin Comprobante Adjunto
+              </button>
+            `}
             <button type="button" id="btn-ir-aprobaciones" class="btn" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; font-weight: 700; padding: 12px; background: rgba(238, 93, 80, 0.08); border: 1.5px solid var(--accent-red); color: var(--accent-red); cursor: pointer; transition: all 0.2s ease; box-shadow: 0 0 8px rgba(238, 93, 80, 0.1);" onmouseover="this.style.background='rgba(238, 93, 80, 0.18)'; this.style.color='#ffffff';" onmouseout="this.style.background='rgba(238, 93, 80, 0.08)'; this.style.color='var(--accent-red)';">
               <span style="width: 8px; height: 8px; border-radius: 50%; background: var(--accent-red); display: inline-block; animation: blink-amber 1.5s infinite; box-shadow: 0 0 6px var(--accent-red);"></span>
               Aprobación Pendiente
@@ -2483,16 +2407,16 @@ VENDEDOR RESPONSABLE: ${vendedor ? vendedor.nombre : '---'}`
               ${_group('Comuna', `<input type="text" name="new_comuna" class="form-control" placeholder="Ej: Santiago">`, 'new_comuna')}
               ${_group('Teléfono *', `<input type="tel" name="new_telefono" class="form-control" placeholder="Ej: +56 9 1234 5678">`, 'new_telefono')}
               ${_group('Correo Electrónico *', `<input type="email" name="new_email" class="form-control" placeholder="Ej: juan.perez@email.com">`, 'new_email')}
-              ${_group('Estado Civil', `<select name="new_estado_civil" class="form-control">
-                <option value="">Seleccione...</option><option value="Soltero">Soltero</option><option value="Casado">Casado</option><option value="Viudo">Viudo</option><option value="Separado">Separado</option>
+              ${_group('Estado Civil', `<select name="new_estado_civil" class="form-control" onchange="const reg = (this.closest('.modal-body') || document).querySelector('[name=new_regimen_matrimonial]'); if(reg) { reg.disabled = (this.value !== 'Casado'); if(this.value !== 'Casado') reg.value = ''; }">
+                <option value="">Seleccione...</option><option value="Soltero">Soltero</option><option value="Casado">Casado</option><option value="Viudo">Viudo</option><option value="Divorciado">Divorciado</option>
               </select>`, 'new_estado_civil')}
-              ${_group('Régimen Matrimonial', `<select name="new_regimen_matrimonial" class="form-control">
+              ${_group('Régimen Matrimonial', `<select name="new_regimen_matrimonial" class="form-control" disabled>
                 <option value="">Seleccione...</option><option value="Sociedad Conyugal">Sociedad Conyugal</option><option value="Separación de Bienes">Separación de Bienes</option><option value="Participación en los Gananciales">Participación en los Gananciales</option>
               </select>`, 'new_regimen_matrimonial')}
             </div>
 
-            ${_group('Precio Ofertado', `<input type="text" name="precio_oferta" class="form-control" value="${precioFmt}">`, 'precio_oferta')}
-            <div style="display: flex; gap: 8px;">
+            ${_group('Precio Ofertado', `<input type="text" name="precio_oferta" class="form-control" value="${precioFmt}" ${role === 'vendedor' ? 'readonly title="Solo el gerente puede editar el precio" style="background-color: #e9ecef; cursor: not-allowed;"' : ''}>`, 'precio_oferta')}
+            <div style="display: flex; gap: 8px; align-items: flex-end;">
               <div style="flex: 1;">
                 ${_group('Monto Reserva', `<input type="text" name="monto_reserva" class="form-control" value="$ 0">`, 'monto_reserva')}
               </div>
@@ -3135,9 +3059,42 @@ VENDEDOR RESPONSABLE: ${vendedor ? vendedor.nombre : '---'}`
           }
           tbody += `<td>${val}</td>`;
         });
+        let isDeleteBlocked = false;
+        let deleteTitle = "Eliminar";
+        if (entity === 'vendedores') {
+          const negs = APP5T_DB.getAll('negociaciones') || [];
+          if (negs.some(n => String(n.id_vendedor) === String(pk))) {
+            isDeleteBlocked = true;
+            deleteTitle = "No se puede eliminar porque tiene ventas/negociaciones asociadas";
+          }
+        } else if (entity === 'clientes') {
+          const negs = APP5T_DB.getAll('negociaciones') || [];
+          if (negs.some(n => String(n.id_cliente) === String(pk))) {
+            isDeleteBlocked = true;
+            deleteTitle = "No se puede eliminar porque tiene negociaciones asociadas";
+          }
+        } else if (entity === 'proyectos') {
+          const lotes = APP5T_DB.getAll('propiedades') || [];
+          const etapas = APP5T_DB.getAll('etapas') || [];
+          if (lotes.some(p => String(p.id_proyecto) === String(pk)) || etapas.some(e => String(e.id_proyecto) === String(pk))) {
+            isDeleteBlocked = true;
+            deleteTitle = "No se puede eliminar porque tiene lotes o etapas asociadas";
+          }
+        } else if (entity === 'etapas') {
+          const lotes = APP5T_DB.getAll('propiedades') || [];
+          if (lotes.some(p => String(p.id_etapa) === String(pk))) {
+            isDeleteBlocked = true;
+            deleteTitle = "No se puede eliminar porque tiene lotes asociados";
+          }
+        }
+        
+        const deleteBtn = isDeleteBlocked 
+            ? `<button class="btn btn-sm btn-outline btn-outline-danger" style="opacity: 0.5; cursor: not-allowed;" title="${deleteTitle}" onclick="if(window.APP5T_Utils) { APP5T_Utils.showToast('${deleteTitle}', 'warning'); } else { alert('${deleteTitle}'); }"><i class="fa-solid fa-trash"></i></button>`
+            : `<button class="btn btn-sm btn-outline btn-outline-danger" title="${deleteTitle}" onclick="APP5T_Forms._deleteRecord('${entity}','${pk}')"><i class="fa-solid fa-trash"></i></button>`;
+
         tbody += `<td class="text-center">
-          <button class="btn btn-sm btn-outline" onclick="APP5T_Forms._editRecord('${entity}','${pk}')"><i class="fa-solid fa-pen"></i></button>
-          <button class="btn btn-sm btn-outline btn-outline-danger" onclick="APP5T_Forms._deleteRecord('${entity}','${pk}')"><i class="fa-solid fa-trash"></i></button>
+          <button class="btn btn-sm btn-outline" title="Editar" onclick="APP5T_Forms._editRecord('${entity}','${pk}')"><i class="fa-solid fa-pen"></i></button>
+          ${deleteBtn}
         </td></tr>`;
       });
     }
@@ -3161,32 +3118,57 @@ VENDEDOR RESPONSABLE: ${vendedor ? vendedor.nombre : '---'}`
 
   function _buildFormHTML(schema, record, isForceNew = false) {
     const isEdit = !!record && !isForceNew;
+    const currentUserRole = (window.APP5T_Sync && APP5T_Sync.session && APP5T_Sync.session.rol) ? APP5T_Sync.session.rol.toLowerCase() : 'vendedor';
     let html = `<form id="frm-crud" class="form-grid">`;
     schema.fields.forEach(f => {
       const val = record ? (record[f.key] !== undefined ? record[f.key] : '') : (f.default || '');
       const reqAttr = f.required ? 'required' : '';
+      
+      let extraAttr = '';
+      if (f.key === 'valor_final') {
+        if (currentUserRole === 'vendedor') {
+          extraAttr = 'readonly title="Solo el gerente puede editar el precio" style="background-color: #e9ecef; cursor: not-allowed;"';
+        } else if (record && record.estado && record.estado !== 'Disponible') {
+          extraAttr = 'readonly title="El precio no puede editarse en este estado" style="background-color: #e9ecef; cursor: not-allowed;"';
+        }
+      }
+      
+      // Make all fields except "rol" disabled in edit mode for "propiedades"
+      if (schema.label === 'Propiedad' && isEdit && f.key !== 'rol') {
+        extraAttr = 'disabled title="Solo se puede editar el Rol SII" style="background-color: #e9ecef; cursor: not-allowed;"';
+      }
+      
+      // Make RUT readonly in edit mode for Vendedor, Cliente, Director
+      if (['Vendedor', 'Cliente', 'Director'].includes(schema.label) && isEdit && f.key === 'rut') {
+        extraAttr = 'readonly title="El RUT no se puede modificar una vez guardado" style="background-color: #e9ecef; cursor: not-allowed;"';
+      }
+
       let input = '';
       switch (f.type) {
         case 'select':
-          input = `<select name="${f.key}" class="form-control" ${reqAttr}>
+          input = `<select name="${f.key}" class="form-control" ${reqAttr} ${extraAttr}>
             <option value="">— Seleccionar —</option>
             ${(f.options || []).map(o => `<option value="${o}" ${val === o ? 'selected' : ''}>${o}</option>`).join('')}
           </select>`;
           break;
         case 'ref':
           input = _refSelect(f.key, f.ref, f.refLabel, val);
+          if (extraAttr) {
+            // Note: _refSelect returns a <select>, we can just replace its start tag to inject extraAttr
+            input = input.replace('<select ', `<select ${extraAttr} `);
+          }
           break;
         case 'textarea':
-          input = `<textarea name="${f.key}" class="form-control" rows="3" ${reqAttr}>${val}</textarea>`;
+          input = `<textarea name="${f.key}" class="form-control" rows="3" ${reqAttr} ${extraAttr}>${val}</textarea>`;
           break;
         case 'date':
-          input = `<input type="date" name="${f.key}" class="form-control" value="${val}" ${reqAttr}>`;
+          input = `<input type="date" name="${f.key}" class="form-control" value="${val}" ${reqAttr} ${extraAttr}>`;
           break;
         case 'number':
-          input = `<input type="number" name="${f.key}" class="form-control" value="${val}" ${reqAttr}>`;
+          input = `<input type="number" name="${f.key}" class="form-control" value="${val}" ${reqAttr} ${extraAttr}>`;
           break;
         default:
-          input = `<input type="${f.type || 'text'}" name="${f.key}" class="form-control" value="${val}" ${reqAttr}>`;
+          input = `<input type="${f.type || 'text'}" name="${f.key}" class="form-control" value="${val}" ${reqAttr} ${extraAttr}>`;
       }
       html += _group(f.label + (f.required ? ' *' : ''), input, f.key);
     });
@@ -3352,7 +3334,7 @@ VENDEDOR RESPONSABLE: ${vendedor ? vendedor.nombre : '---'}`
            const cliNom = cli ? `${cli.nombres} ${cli.apellidos}` : '—';
            
            const text = `⚖️ *Solicitud de Autorización de Escritura*\n\nHola. Te informo que el *Lote ${loteNom}* del proyecto *${proyNom}* ha finalizado el pago de su cuenta corriente al 100%.\n\n*Cliente:* ${cliNom}\n\nFavor revisar en la Mesa Documental (Aprobaciones) para autorizar su Escrituración.`;
-           const num = "56961208947";
+           const num = "56974300363";
            const encoded = encodeURIComponent(text);
            window.open(`https://wa.me/${num}?text=${encoded}`, '_blank');
         } else {
@@ -3373,6 +3355,7 @@ VENDEDOR RESPONSABLE: ${vendedor ? vendedor.nombre : '---'}`
      ══════════════════════════════════════════════════════ */
   function renderActivarCtaCteForm(container, neg) {
     if (!container || !neg) return;
+    const role = (APP5T_Sync.session && APP5T_Sync.session.rol) ? APP5T_Sync.session.rol.toLowerCase() : 'vendedor';
     const prop = APP5T_DB.getById('propiedades', neg.id_propiedad);
     const cli = APP5T_DB.getById('clientes', neg.id_cliente);
     const proy = prop ? APP5T_DB.getById('proyectos', prop.id_proyecto) : null;
@@ -3397,7 +3380,7 @@ VENDEDOR RESPONSABLE: ${vendedor ? vendedor.nombre : '---'}`
           <div class="info-item" style="display: flex; flex-direction: column;"><span class="info-label" style="font-size: 0.75rem; color: var(--text-dim);">Propiedad</span><span class="info-value" style="font-weight: 600; color: var(--text-white);">${loteProy}</span></div>
         </div>
 
-        ${_group('Valor Final Lote', `<input type="text" name="valor_final" class="form-control" value="${APP5T_Utils.formatMoneda(defaultValorFinal)}">`, 'valor_final')}
+        ${_group('Valor Final Lote', `<input type="text" name="valor_final" class="form-control" value="${APP5T_Utils.formatMoneda(defaultValorFinal)}" ${role === 'vendedor' ? 'readonly title="Solo el gerente puede editar el precio" style="background-color: #e9ecef; cursor: not-allowed;"' : ''}>`, 'valor_final')}
         ${_group('Pie / Enganche', `<input type="text" name="pie" class="form-control" value="${APP5T_Utils.formatMoneda(defaultPie)}">`, 'pie')}
         
         <div class="form-group" style="margin-bottom: 1rem;">
@@ -3444,9 +3427,8 @@ VENDEDOR RESPONSABLE: ${vendedor ? vendedor.nombre : '---'}`
         const submitBtn = frm.querySelector('button[type="submit"]');
         if (submitBtn) {
           submitBtn.disabled = true;
-          submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Procesando...';
+          submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Activando...';
         }
-
         const valorFinal = APP5T_Utils.parseMoneda(frm.querySelector('[name="valor_final"]').value) || 0;
         const pie = APP5T_Utils.parseMoneda(frm.querySelector('[name="pie"]').value) || 0;
         const cantidadCuotas = Number(frm.querySelector('[name="cantidad_cuotas"]').value) || 0;
@@ -3503,57 +3485,20 @@ VENDEDOR RESPONSABLE: ${vendedor ? vendedor.nombre : '---'}`
     });
   }
 
-  function vincularDocumentoLote(propiedadId) {
+  function _abrirDocumentosLote(propiedadId) {
     const propiedad = APP5T_DB.getById('propiedades', propiedadId);
     if (!propiedad) return;
 
-    const html = `
-      <form id="frm-vincular-lote" class="lote-ficha" style="padding: 16px; font-size: 0.85rem;">
-        <h4 style="margin: 0 0 12px 0; color: var(--text-white); font-weight: 700; font-size: 0.95rem;">
-          <i class="fa-brands fa-google-drive" style="color: var(--accent-blue); margin-right: 6px;"></i> Vincular Documento Principal: Lote ${propiedad.nombre}
-        </h4>
-        <div class="form-group" style="margin-bottom: 14px;">
-          <label style="font-size: 0.76rem; color: var(--text-dim); display: block; margin-bottom: 4px; font-weight: 600;">Enlace de Google Drive *</label>
-          <input type="url" id="lote-drive-url" class="form-control" placeholder="https://drive.google.com/..." value="${propiedad.url || ''}" required style="width: 100%; padding: 6px 8px; font-size: 0.8rem; background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: 4px; color: var(--text-white);">
-        </div>
-        <div style="display: flex; gap: 8px; justify-content: flex-end;">
-          <button type="button" class="btn btn-secondary" onclick="APP5T_Modals.close('modal-generic')" style="padding: 6px 12px; font-size: 0.8rem;">Cancelar</button>
-          <button type="submit" class="btn btn-primary" style="padding: 6px 12px; font-size: 0.8rem; font-weight: 600;">Guardar</button>
-        </div>
-      </form>
-    `;
-
-    window.APP5T.openModal(`Vincular Documento`, html);
-
-    const frm = document.getElementById('frm-vincular-lote');
-    frm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const urlVal = document.getElementById('lote-drive-url').value.trim();
-
-      if (urlVal && !urlVal.startsWith('http://') && !urlVal.startsWith('https://')) {
-        APP5T_Utils.showToast('Por favor, ingresa una URL válida (ej: https://drive.google.com/...)', 'warning');
-        return;
+    const urlToOpen = propiedad.url;
+    
+    if (urlToOpen && (urlToOpen.startsWith('http://') || urlToOpen.startsWith('https://'))) {
+      const newWin = window.open(urlToOpen, '_blank');
+      if (!newWin) {
+        APP5T_Utils.showToast('El navegador bloqueó la ventana emergente. Permite los popups para este sitio.', 'error');
       }
-
-      try {
-        const res = APP5T_DB.update('propiedades', propiedad.id, { url: urlVal });
-        if (res && !res.success) {
-          APP5T_Utils.showToast(`Error al actualizar: ${res.error}`, 'error');
-          return;
-        }
-
-        APP5T_Utils.showToast('Documento vinculado con éxito', 'success');
-        window.APP5T.closeModal(true);
-
-        // Force immediate refresh of current view
-        if (window.APP5T && typeof window.APP5T.refreshAll === 'function') {
-          window.APP5T.refreshAll();
-        }
-      } catch (err) {
-        console.error(err);
-        APP5T_Utils.showToast('Error al vincular el documento', 'error');
-      }
-    });
+    } else {
+      APP5T_Utils.showToast('No hay una carpeta de Drive configurada para este lote. Configúrala en el Catálogo Documental.', 'warning');
+    }
   }
 
   function mostrarComprobanteReservaSimulado(idNeg) {
@@ -3664,10 +3609,19 @@ VENDEDOR RESPONSABLE: ${vendedor ? vendedor.nombre : '---'}`
     html2pdf().set(opt).from(container).save();
   }
 
+  function _verComprobanteB64(idNeg) {
+    const neg = APP5T_DB.getById('negociaciones', idNeg);
+    if (!neg || !neg.comprobante_url) {
+      APP5T_Utils.showToast('No hay comprobante adjunto.', 'warning');
+      return;
+    }
+    window.open(neg.comprobante_url, '_blank');
+  }
+
   /* ══════════════════════════════════════════════════════
      PUBLIC API
      ══════════════════════════════════════════════════════ */
-  const api = { renderLoteForm, renderCRUDTable, renderPagoForm, renderActivarCtaCteForm, _addRecord, _editRecord, _deleteRecord, vincularDocumentoLote, descargarPDFSimulado, generarHTMLComprobanteReserva, mostrarComprobanteReservaSimulado, descargarFichaLegal };
+  const api = { renderLoteForm, renderCRUDTable, renderPagoForm, renderActivarCtaCteForm, _addRecord, _editRecord, _deleteRecord, _abrirDocumentosLote, descargarPDFSimulado, generarHTMLComprobanteReserva, mostrarComprobanteReservaSimulado, descargarFichaLegal, _verComprobanteB64 };
   window.APP5T_Forms = api;
   return api;
 })();

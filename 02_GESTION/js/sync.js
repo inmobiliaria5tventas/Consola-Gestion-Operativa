@@ -22,12 +22,8 @@ const APP5T_Sync = (() => {
       tablesToClear.forEach(t => {
         localStorage.removeItem('app5t_' + t);
       });
-      console.warn("APP5T_Sync: Nueva versión detectada (" + CURRENT_VERSION + "). Almacenamiento local limpiado. Forzando recarga cache-busting.");
-      
-      // Force reload by appending version query param to bypass aggressive mobile caches
-      const url = new URL(window.location.href);
-      url.searchParams.set('v', CURRENT_VERSION);
-      window.location.href = url.toString();
+      console.warn("APP5T_Sync: Nueva versión detectada (" + CURRENT_VERSION + "). Almacenamiento local limpiado.");
+      window.location.reload();
     }
   } catch (e) {
     console.error("APP5T_Sync: Error al verificar versión:", e);
@@ -139,7 +135,7 @@ const APP5T_Sync = (() => {
         id_proyecto:   'id_proyecto',
         nombre_etapa:  'nombre_etapa',
         nombre:        'nombre_etapa',
-        nro_lotes:     'nro_lotes',
+        nro_master:     'nro_master',
         superficie:    'superficie',
         fecha_ingreso: 'fecha_ingreso',
         fecha_dom:     'fecha_dom',
@@ -248,7 +244,8 @@ const APP5T_Sync = (() => {
         id_proceso:     'id_proceso'
       }
     },
-    documentos: {
+    auditoria: { tableName: 'auditoria', pk: 'id', fields: { id: 'id', fecha: 'fecha', usuario: 'usuario', rol: 'rol', tabla: 'tabla', accion: 'accion', registro_id: 'registro_id', detalle: 'detalle' } },
+documentos: {
       tableName: 'Documentos',
       pk: 'id',
       fields: {
@@ -444,6 +441,12 @@ const APP5T_Sync = (() => {
       for (const item of currentQueue) {
         try {
           const path = item.tabla.toLowerCase();
+          
+          if (path === 'documentos') {
+            console.warn('APP5T_Sync: Saltando operación pendiente para tabla eliminada:', path);
+            continue;
+          }
+
           const mappedData = _toSupabaseRecord(item.tabla, item.data);
           const pkLocalField = MAPPING[item.tabla]?.pk || 'id';
           const pkSheetField = MAPPING[item.tabla]?.fields[pkLocalField] || 'id';
@@ -637,7 +640,7 @@ const APP5T_Sync = (() => {
       updateIndicator('syncing');
     }
     try {
-      const tables = ['vendedores', 'clientes', 'proyectos', 'etapas', 'propiedades', 'directorio', 'negociaciones', 'cuenta_corriente', 'tramites', 'documentos'];
+      const tables = ['vendedores', 'clientes', 'proyectos', 'etapas', 'propiedades', 'directorio', 'negociaciones', 'cuenta_corriente', 'tramites', 'documentos', 'auditoria'];
       
       const results = await Promise.all(tables.map(async t => {
         const tableName = MAPPING[t]?.tableName || t;
@@ -659,23 +662,17 @@ const APP5T_Sync = (() => {
           });
           
           if (!resp.ok) {
-            if (t === 'documentos' && (resp.status === 404 || resp.status === 400)) {
-              console.warn(`APP5T_Sync: Table '${tableName}' does not exist on Supabase yet. Skipping sync for this table.`);
-              const local = (typeof APP5T_DB !== 'undefined' ? APP5T_DB.getAll('documentos') : null) || [];
-              return { tableName, data: local };
-            }
-            throw new Error(`Fetch failed for ${path}: HTTP ${resp.status}`);
+            console.warn(`APP5T_Sync: Table '${tableName}' returned HTTP ${resp.status}. Skipping sync for this table.`);
+            const local = (typeof APP5T_DB !== 'undefined' ? APP5T_DB.getAll(t) : null) || [];
+            return { tableName, data: local };
           }
           
           const data = await resp.json();
           return { tableName, data };
         } catch (err) {
-          if (t === 'documentos') {
-            console.warn(`APP5T_Sync: Table '${tableName}' sync skipped:`, err.message);
-            const local = APP5T_DB.getAll('documentos') || [];
-            return { tableName, data: local };
-          }
-          throw err;
+          console.warn(`APP5T_Sync: Table '${tableName}' sync skipped due to error:`, err.message);
+          const local = (typeof APP5T_DB !== 'undefined' ? APP5T_DB.getAll(t) : null) || [];
+          return { tableName, data: local };
         }
       }));
 
@@ -1045,7 +1042,7 @@ const APP5T_Sync = (() => {
     const map = MAPPING[tabla];
     if (!map) return dbRec;
     const ID_FIELDS = new Set(['id', 'id_proyecto', 'id_etapa', 'id_propiedad', 'id_vendedor', 'id_cliente', 'cuota_nro', 'id_tramite', 'id_director', 'id_documento']);
-    const NUM_FIELDS = new Set(['valor_final', 'pie', 'cantidad_cuotas', 'superficie', 'abono', 'valor_cuota', 'valor_pagado', 'nro_etapas', 'nro_lotes']);
+    const NUM_FIELDS = new Set(['valor_final', 'pie', 'cantidad_cuotas', 'superficie', 'abono', 'valor_cuota', 'valor_pagado', 'nro_etapas', 'nro_master']);
 
     const localRec = {};
     Object.entries(map.fields).forEach(([localKey, fieldKey]) => {
@@ -1094,10 +1091,10 @@ const APP5T_Sync = (() => {
 
   function _mergeCoordinatesFromGeoJSON(properties) {
     const geoSources = [
-      { varName: "json_copihue_lotes",  idProy: 1 },
-      { varName: "json_brisas_lotes",   idProy: 2 },
-      { varName: "json_encinos_lotes",  idProy: 3 },
-      { varName: "json_naranjos_lotes", idProy: 4 }
+      { varName: "json_copihue_master",  idProy: 1 },
+      { varName: "json_brisas_master",   idProy: 2 },
+      { varName: "json_encinos_master",  idProy: 3 },
+      { varName: "json_naranjos_master", idProy: 4 }
     ];
 
     const coordsMap = {};
@@ -1425,7 +1422,7 @@ const APP5T_Sync = (() => {
     }
     try {
       // 1. Delete all permissions
-      await fetch(`${CONFIG.SUPABASE_URL}00_gobernanza_permisos`, {
+      await fetch(`${CONFIG.SUPABASE_URL}00_gobernanza_permisos?id_permiso=gte.0`, {
         method: 'DELETE',
         headers: {
           'apikey': CONFIG.SUPABASE_KEY,
@@ -1602,7 +1599,19 @@ const APP5T_Sync = (() => {
       updateIndicator('syncing');
     }
     try {
-      const result = await fetchAll(isBackground);
+      let result = await fetchAll(isBackground);
+      
+      // FIX: fetchAll returns an array of {tableName, data}, but pullAll expects an object map
+      if (Array.isArray(result)) {
+        const resultMap = {};
+        result.forEach(item => {
+          if (item && item.tableName) {
+            resultMap[item.tableName] = item.data;
+          }
+        });
+        result = resultMap;
+      }
+      
       if (result && !result.error) {
         const tableNameProps = MAPPING['propiedades']?.tableName || 'Propiedades';
         const remoteProps = result[tableNameProps] || [];
@@ -1704,7 +1713,7 @@ const APP5T_Sync = (() => {
         });
 
         let hasChanges = false;
-        const tables = ['vendedores', 'clientes', 'proyectos', 'etapas', 'propiedades', 'directorio', 'negociaciones', 'cuenta_corriente', 'tramites', 'documentos'];
+        const tables = ['vendedores', 'clientes', 'proyectos', 'etapas', 'propiedades', 'directorio', 'negociaciones', 'cuenta_corriente', 'tramites', 'documentos', 'auditoria'];
         tables.forEach(t => {
           let localRecords;
           if (t === 'negociaciones') {

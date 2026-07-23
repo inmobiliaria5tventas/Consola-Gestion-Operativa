@@ -46,6 +46,7 @@ var APP5T_DB = (function () {
             direccion: 'string', comuna: 'string', telefono: 'string', email: 'string',
             estado_civil: 'string', regimen_matrimonial: 'string', fecha_ingreso: 'string',
             canal_captacion: 'string', id_vendedor: 'number', motivo_busqueda: 'string',
+            profesion: 'string',
             notas: 'string', historial: 'string', estado_cliente: 'string'
         },
         proyectos: {
@@ -63,7 +64,11 @@ var APP5T_DB = (function () {
             id_etapa: 'number', id_proyecto: 'number', nombre: 'string', rol: 'string',
             superficie: 'number', coordenadas: 'object', valor_final: 'number', abono: 'number', fecha_ingreso: 'string',
             deslindes: 'string', infraestructura: 'string', fecha_reserva: 'string',
-            fecha_fin_promesa: 'string', fecha_venta: 'string', url: 'string', estado: 'string'
+            fecha_fin_promesa: 'string',
+            fecha_venta: 'string',
+            url: 'string',
+            estado: 'string',
+            coordenadas: 'object'
         },
         directorio: {
             rut: 'string', nombre: 'string', cargo: 'string', telefono: 'string',
@@ -77,7 +82,8 @@ var APP5T_DB = (function () {
             tipo_moneda: 'string', url: 'string', estado_avance: 'string', reajuste: 'number', id_proceso: 'string',
             metodo_pago: 'string', notas: 'string', fecha_promesa: 'string', tipo_operacion: 'string',
             autorizado_promesa: 'boolean', ficha_abogado_generada: 'boolean',
-            autorizado_escriturar: 'any', estado_escrituracion: 'any'
+            autorizado_escriturar: 'any', estado_escrituracion: 'any',
+            comprobante_url: 'string'
         },
         cuenta_corriente: {
             id_cliente: 'number', id_propiedad: 'number', cuota_nro: 'number', valor_cuota: 'number',
@@ -94,11 +100,13 @@ var APP5T_DB = (function () {
             id_proceso: 'string'
         },
         documentos: {
+            id_propiedad: 'string',
             nombre: 'string',
             tipo_documento: 'string',
             url_drive: 'string',
+            estado: 'string',
+            fecha_carga: 'string',
             id_proyecto: 'number',
-            id_propiedad: 'number',
             fecha_ingreso: 'string'
         }
     };
@@ -140,7 +148,11 @@ var APP5T_DB = (function () {
     /** Carga un arreglo desde localStorage */
     function _load(tabla) {
         try {
-            return JSON.parse(localStorage.getItem(_getKey(tabla))) || [];
+            let parsed = JSON.parse(localStorage.getItem(_getKey(tabla))) || [];
+            if (Array.isArray(parsed)) {
+                return parsed.filter(item => item !== null && item !== undefined);
+            }
+            return [];
         } catch (e) {
             return [];
         }
@@ -606,7 +618,8 @@ var APP5T_DB = (function () {
             id_proceso:             tipoOp,
             tipo_operacion:         tipoOp,
             metodo_pago:            data.metodo_pago || '',
-            notas:                  data.notas || ''
+            notas:                  data.notas || '',
+            comprobante_url:        data.comprobante_url || ''
         };
 
         var res = insert('negociaciones', neg);
@@ -869,8 +882,8 @@ var APP5T_DB = (function () {
         if (!neg) return { success: false, error: 'Negociación no encontrada' };
 
         var prop = getById('propiedades', neg.id_propiedad);
-        if (!prop || prop.estado !== 'Promesada') {
-            return { success: false, error: 'La Cuenta Corriente solo se puede activar para propiedades en estado de Promesa (Promesada).' };
+        if (!prop || !['Promesada', 'Venta_Directa', 'Vendida', 'Escriturada'].includes(prop.estado)) {
+            return { success: false, error: 'La Cuenta Corriente solo se puede activar/regenerar para propiedades en Promesa, Venta Directa, Vendida o Escriturada.' };
         }
 
         // Actualizar la negociación con los datos de cuotas si se proporcionan

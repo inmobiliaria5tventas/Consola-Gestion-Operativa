@@ -241,7 +241,25 @@ const APP5T_Map = (function () {
         // Build GeoJSON FeatureCollection
         const features = [];
         propiedades.forEach(function (prop) {
-            if (!prop.coordenadas) return;
+            if (!prop.coordenadas || !prop.coordenadas.coordinates) return;
+            const geom = prop.coordenadas;
+            
+            let isValid = false;
+            try {
+                function _isNum(c) {
+                    if (Array.isArray(c)) {
+                        if (c.length === 0) return false;
+                        for (let i=0; i<c.length; i++) {
+                            if (!_isNum(c[i])) return false;
+                        }
+                        return true;
+                    }
+                    return typeof c === 'number' && isFinite(c);
+                }
+                isValid = geom && geom.coordinates && _isNum(geom.coordinates);
+            } catch(e) {}
+            if (!isValid) return;
+
             features.push({
                 type: 'Feature',
                 geometry: prop.coordenadas,

@@ -1,7 +1,7 @@
 /**
  * =====================================================
- * APP.JS — APP5T  (Main SPA Controller)
- * CRM & GIS Unificado — 5 Tierras
+ * APP.JS - APP5T  (Main SPA Controller)
+ * CRM & GIS Unificado - 5 Tierras
  * =====================================================
  */
 const APP5T = (() => {
@@ -43,70 +43,41 @@ const APP5T = (() => {
   /* ══════════════════════════════════════════════════════
      MENU CONFIGURATION PER ROLE
      ══════════════════════════════════════════════════════ */
+  const ALL_MENUS = [
+    { 
+      id: 'proyectos_group', 
+      icon: 'fa-map-location-dot', 
+      label: 'Proyectos', 
+      isGroup: true,
+      children: [
+        { id: 'mapa-El Copihue', label: 'El Copihue' },
+        { id: 'mapa-Las Brisas', label: 'Las Brisas' },
+        { id: 'mapa-Los Encinos', label: 'Los Encinos' },
+        { id: 'mapa-Los Naranjos', label: 'Los Naranjos' }
+      ]
+    },
+    { id: 'dashboard',  icon: 'fa-chart-line',           label: 'Dashboard' },
+    { id: 'leads',      icon: 'fa-users',                label: 'Mis Clientes' },
+    { id: 'aprobaciones',icon: 'fa-stamp',               label: 'Aprobaciones' },
+    { id: 'mesa',       icon: 'fa-file-contract',        label: 'Mesa Documental' },
+    { id: 'catalogo',   icon: 'fa-folder-tree',          label: 'Catálogo Documental' },
+    { id: 'ctacte',     icon: 'fa-money-check-dollar',   label: 'Cuenta Corriente' },
+    { id: 'informes',   icon: 'fa-file-invoice-dollar',  label: 'Informes Mensuales' },      
+    { id: 'carga',      icon: 'fa-database',             label: 'Carga de Datos' },
+    { id: 'inventario', icon: 'fa-list-check',           label: 'Inventario' },
+    { id: 'auditoria',  icon: 'fa-clock-rotate-left',    label: 'Auditoría' }
+  ];
+
   const MENUS = {
-    vendedor: [
-      { 
-        id: 'proyectos_group', 
-        icon: 'fa-map-location-dot', 
-        label: 'Proyectos', 
-        isGroup: true,
-        children: [
-
-          { id: 'mapa-El Copihue', label: 'El Copihue' },
-          { id: 'mapa-Las Brisas', label: 'Las Brisas' },
-          { id: 'mapa-Los Encinos', label: 'Los Encinos' },
-          { id: 'mapa-Los Naranjos', label: 'Los Naranjos' }
-        ]
-      },
-      { id: 'leads',            icon: 'fa-users',            label: 'Mis Clientes' }
-    ],
-    gerente: [
-      { 
-        id: 'proyectos_group', 
-        icon: 'fa-map-location-dot', 
-        label: 'Proyectos', 
-        isGroup: true,
-        children: [
-
-          { id: 'mapa-El Copihue', label: 'El Copihue' },
-          { id: 'mapa-Las Brisas', label: 'Las Brisas' },
-          { id: 'mapa-Los Encinos', label: 'Los Encinos' },
-          { id: 'mapa-Los Naranjos', label: 'Los Naranjos' }
-        ]
-      },
-      { id: 'aprobaciones',     icon: 'fa-stamp',            label: 'Aprobaciones' },
-      { id: 'dashboard',        icon: 'fa-chart-line',       label: 'Panel Gerencial' },
-      { id: 'catalogo',         icon: 'fa-folder-tree',      label: 'Catálogo Documental' },
-      { id: 'inventario',       icon: 'fa-list-check',       label: 'Inventario' }
-    ],
-    administrador: [
-      { 
-        id: 'proyectos_group', 
-        icon: 'fa-map-location-dot', 
-        label: 'Proyectos', 
-        isGroup: true,
-        children: [
-
-          { id: 'mapa-El Copihue', label: 'El Copihue' },
-          { id: 'mapa-Las Brisas', label: 'Las Brisas' },
-          { id: 'mapa-Los Encinos', label: 'Los Encinos' },
-          { id: 'mapa-Los Naranjos', label: 'Los Naranjos' }
-        ]
-      },
-      { id: 'dashboard',  icon: 'fa-chart-line',           label: 'Dashboard' },
-      { id: 'mesa',       icon: 'fa-file-contract',        label: 'Mesa Documental' },
-      { id: 'catalogo',   icon: 'fa-folder-tree',          label: 'Catálogo Documental' },
-      { id: 'ctacte',     icon: 'fa-money-check-dollar',   label: 'Cuenta Corriente' },
-      { id: 'informes',   icon: 'fa-file-invoice-dollar',  label: 'Informes Mensuales' },      { id: 'carga',      icon: 'fa-database',             label: 'Carga de Datos' },
-      { id: 'inventario', icon: 'fa-list-check',           label: 'Inventario' },
-      { id: 'auditoria',  icon: 'fa-clock-rotate-left',    label: 'Auditoría' }
-    ]
+    vendedor: ALL_MENUS,
+    gerente: ALL_MENUS,
+    administrador: ALL_MENUS
   };
 
   const ROLE_NAMES = {
     vendedor:      { name: 'Manuel Matus',  title: 'Fuerza de Ventas' },
-    gerente:       { name: 'DANIEL GAJARDO PEREIRA', title: 'Dirección Comercial' },
-    administrador: { name: 'Carmen Gloria Almendras',  title: 'Administración' }
+    administrador: { name: 'Pia Erices',    title: 'Administración' },
+    gerente:       { name: 'Daniel Gajardo',title: 'Gerencia' }
   };
 
   /* ══════════════════════════════════════════════════════
@@ -117,7 +88,7 @@ const APP5T = (() => {
       return `<span class="tag tag-venta-directa"><i class="fa-solid fa-bolt"></i> Venta Directa</span>`;
     }
     const clean = (estado || '').toLowerCase().replace(/\s+/g, '-');
-    return `<span class="tag tag-${clean}">${estado || '—'}</span>`;
+    return `<span class="tag tag-${clean}">${estado || '-'}</span>`;
   }
 
   /* ══════════════════════════════════════════════════════
@@ -154,7 +125,7 @@ const APP5T = (() => {
     return 'Vendedor';
   }
 
-  function hasPermission(moduleName) {
+  function hasPermission(moduleName, queryRole = null) {
     const userSession = sessionStorage.getItem('app5t_user') || localStorage.getItem('app5t_user');
     if (!userSession) return false;
     const u = JSON.parse(userSession);
@@ -164,8 +135,9 @@ const APP5T = (() => {
     const perm = perms.find(p => (p.Componente_Modulo || p.componente_modulo) === moduleName);
     if (!perm) return false; // Zero-trust default
     
-    const roleColUpper = 'Acceso_' + getRoleKey(u.rol || u.Rol);
-    const roleColLower = 'acceso_' + getRoleKey(u.rol || u.Rol).toLowerCase();
+    const roleToUse = queryRole || getRoleKey(u.rol || u.Rol);
+    const roleColUpper = 'Acceso_' + roleToUse;
+    const roleColLower = 'acceso_' + roleToUse.toLowerCase();
     const val = perm[roleColUpper] !== undefined ? perm[roleColUpper] : perm[roleColLower];
     
     return val === true || String(val).toUpperCase() === 'TRUE';
@@ -221,7 +193,7 @@ const APP5T = (() => {
   function _isTabVisible(role, tabId) {
     const permName = TAB_PERMISSIONS[tabId];
     if (!permName) return true;
-    return hasPermission(permName);
+    return hasPermission(permName, getRoleKey(role));
   }
 
   function _buildSidebar(role) {
@@ -795,8 +767,8 @@ const APP5T = (() => {
       // Resolve project, stage, and lot details
       const etapa = propiedadData.id_etapa ? APP5T_DB.getById('etapas', propiedadData.id_etapa) : null;
       const proy = etapa ? APP5T_DB.getById('proyectos', etapa.id_proyecto) : null;
-      const proyNom = proy ? (proy.nombre_proyecto || proy.nombre || '') : '—';
-      const etapaNom = etapa ? (etapa.nombre_etapa || etapa.nombre || '') : '—';
+      const proyNom = proy ? (proy.nombre_proyecto || proy.nombre || '') : '-';
+      const etapaNom = etapa ? (etapa.nombre_etapa || etapa.nombre || '') : '-';
       const loteNom = propiedadData.nombre || '';
       
       let planoLink = '';
@@ -806,7 +778,7 @@ const APP5T = (() => {
       
       projEl.innerHTML = `<strong>Proyecto:</strong> ${proyNom}${planoLink} &nbsp;·&nbsp; <strong>Etapa:</strong> ${etapaNom} &nbsp;·&nbsp; <strong>Lote:</strong> ${loteNom}`;
     }
-    if (areaEl) areaEl.textContent = propiedadData.superficie || '—';
+    if (areaEl) areaEl.textContent = propiedadData.superficie || '-';
     if (priceEl) priceEl.textContent = APP5T_Utils.formatMoneda(propiedadData.valor_final || 0);
     if (badgeEl) badgeEl.innerHTML = getStatusBadgeHTML(propiedadData.estado);
 
@@ -819,15 +791,15 @@ const APP5T = (() => {
         if (propiedadData.estado === 'Reservada' || propiedadData.estado === 'Promesada') {
           let neg = null;
           if (typeof APP5T_DB !== 'undefined') {
-            const negs = APP5T_DB.query('negociaciones', n => String(n.id_propiedad) === String(propiedadData.id));
+            const negs = APP5T_DB.query('negociaciones', n => n && String(n.id_propiedad) === String(propiedadData.id));
             neg = negs && negs.length ? negs[negs.length - 1] : null;
           }
           if (neg) {
             const cli = APP5T_DB.getById('clientes', neg.id_cliente);
-            const cliNom = cli ? `${cli.nombres} ${cli.apellidos}` : '—';
-            const cliRut = cli ? (cli.rut || '—') : '—';
+            const cliNom = cli ? `${cli.nombres} ${cli.apellidos}` : '-';
+            const cliRut = cli ? (cli.rut || '-') : '-';
             const vend = APP5T_DB.getById('vendedores', neg.id_vendedor);
-            const vendNom = vend ? vend.nombre : '—';
+            const vendNom = vend ? vend.nombre : '-';
             formContainer.innerHTML = `
               <div class="lote-ficha accent-orange" style="padding: 12px; margin-top: 10px;">
                 <div class="lote-ficha-header" style="margin-bottom: 10px;">
@@ -884,8 +856,8 @@ const APP5T = (() => {
 
       const etapa = propiedadData.id_etapa ? APP5T_DB.getById('etapas', propiedadData.id_etapa) : null;
       const proy = etapa ? APP5T_DB.getById('proyectos', etapa.id_proyecto) : null;
-      const proyNom = proy ? (proy.nombre_proyecto || proy.nombre || '') : '—';
-      const etapaNom = etapa ? (etapa.nombre_etapa || etapa.nombre || '') : '—';
+      const proyNom = proy ? (proy.nombre_proyecto || proy.nombre || '') : '-';
+      const etapaNom = etapa ? (etapa.nombre_etapa || etapa.nombre || '') : '-';
       const loteNom = propiedadData.nombre || '';
       const formattedPrice = APP5T_Utils.formatMoneda(propiedadData.valor_final || 0);
 
@@ -899,15 +871,15 @@ const APP5T = (() => {
       if (propiedadData.estado === 'Reservada' || propiedadData.estado === 'Promesada') {
         let neg = null;
         if (typeof APP5T_DB !== 'undefined') {
-          const negs = APP5T_DB.query('negociaciones', n => String(n.id_propiedad) === String(propiedadData.id));
+          const negs = APP5T_DB.query('negociaciones', n => n && String(n.id_propiedad) === String(propiedadData.id));
           neg = negs && negs.length ? negs[negs.length - 1] : null;
         }
         if (neg) {
           const cli = APP5T_DB.getById('clientes', neg.id_cliente);
-          const cliNom = cli ? `${cli.nombres} ${cli.apellidos}` : '—';
-          const cliRut = cli ? (cli.rut || '—') : '—';
+          const cliNom = cli ? `${cli.nombres} ${cli.apellidos}` : '-';
+          const cliRut = cli ? (cli.rut || '-') : '-';
           const vend = APP5T_DB.getById('vendedores', neg.id_vendedor);
-          const vendNom = vend ? vend.nombre : '—';
+          const vendNom = vend ? vend.nombre : '-';
           acuerdoHtml = `
             <div class="lote-acuerdo-info" style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--glass-border); font-size: 0.75rem; color: var(--text-dim);">
               <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
@@ -938,7 +910,7 @@ const APP5T = (() => {
         <div class="lote-specs" style="display:flex; gap:10px; margin-bottom:12px; font-size:0.75rem;">
           <div class="spec" style="flex:1;">
             <span class="spec-label" style="color:var(--text-dim); display:block; font-size:0.65rem;">Superficie</span>
-            <strong class="spec-value" style="color:var(--text-white);">${propiedadData.superficie || '—'} m²</strong>
+            <strong class="spec-value" style="color:var(--text-white);">${propiedadData.superficie || '-'} m²</strong>
           </div>
           <div class="spec" style="flex:1;">
             <span class="spec-label" style="color:var(--text-dim); display:block; font-size:0.65rem;">Precio Lista</span>
@@ -970,8 +942,8 @@ const APP5T = (() => {
 
       const etapa = propiedadData.id_etapa ? APP5T_DB.getById('etapas', propiedadData.id_etapa) : null;
       const proy = etapa ? APP5T_DB.getById('proyectos', etapa.id_proyecto) : null;
-      const proyNom = proy ? (proy.nombre_proyecto || proy.nombre || '') : '—';
-      const etapaNom = etapa ? (etapa.nombre_etapa || etapa.nombre || '') : '—';
+      const proyNom = proy ? (proy.nombre_proyecto || proy.nombre || '') : '-';
+      const etapaNom = etapa ? (etapa.nombre_etapa || etapa.nombre || '') : '-';
       const loteNom = propiedadData.nombre || '';
       const formattedPrice = APP5T_Utils.formatMoneda(propiedadData.valor_final || 0);
 
@@ -987,7 +959,7 @@ const APP5T = (() => {
           <div class="lote-specs" style="display:flex; gap:10px; margin-bottom:20px; font-size:0.85rem;">
             <div class="spec" style="flex:1;">
               <span class="spec-label" style="color:var(--text-dim); display:block; font-size:0.75rem; margin-bottom:2px;">Superficie</span>
-              <strong class="spec-value" style="color:var(--text-white);">${propiedadData.superficie || '—'} m²</strong>
+              <strong class="spec-value" style="color:var(--text-white);">${propiedadData.superficie || '-'} m²</strong>
             </div>
             <div class="spec" style="flex:1;">
               <span class="spec-label" style="color:var(--text-dim); display:block; font-size:0.75rem; margin-bottom:2px;">Precio Lista</span>
@@ -1004,15 +976,15 @@ const APP5T = (() => {
           if (propiedadData.estado === 'Reservada' || propiedadData.estado === 'Promesada') {
             let neg = null;
             if (typeof APP5T_DB !== 'undefined') {
-              const negs = APP5T_DB.query('negociaciones', n => String(n.id_propiedad) === String(propiedadData.id));
+              const negs = APP5T_DB.query('negociaciones', n => n && String(n.id_propiedad) === String(propiedadData.id));
               neg = negs && negs.length ? negs[negs.length - 1] : null;
             }
             if (neg) {
               const cli = APP5T_DB.getById('clientes', neg.id_cliente);
-              const cliNom = cli ? `${cli.nombres} ${cli.apellidos}` : '—';
-              const cliRut = cli ? (cli.rut || '—') : '—';
+              const cliNom = cli ? `${cli.nombres} ${cli.apellidos}` : '-';
+              const cliRut = cli ? (cli.rut || '-') : '-';
               const vend = APP5T_DB.getById('vendedores', neg.id_vendedor);
-              const vendNom = vend ? vend.nombre : '—';
+              const vendNom = vend ? vend.nombre : '-';
               popupFormContainer.innerHTML = `
                 <div class="lote-ficha accent-orange" style="padding: 12px; margin-top: 10px;">
                   <div class="lote-ficha-header" style="margin-bottom: 10px;">
@@ -1065,58 +1037,93 @@ const APP5T = (() => {
   }
 
   /* ══════════════════════════════════════════════════════
-     REFRESH ALL — Master data refresh
+     REFRESH ALL - Master data refresh
      ══════════════════════════════════════════════════════ */
+  function _safeRender(renderFunc, name) {
+    if (typeof renderFunc === 'function') {
+      try {
+        renderFunc();
+      } catch (err) {
+        console.error(`APP5T: Error en renderizado de ${name}:`, err);
+      }
+    }
+  }
+
   function refreshAll() {
-    _populateMapProjects();
-    const stats = typeof APP5T_DB !== 'undefined' ? APP5T_DB.getStats() : null;
+  // Ensure Fecha headers are present even if index.html is cached
+  ['tbody-mesa-promesas', 'tbody-mesa-promesas-curso', 'tbody-mesa-escrituras'].forEach(id => {
+    const tbody = document.getElementById(id);
+    if (tbody) {
+      const thead = tbody.previousElementSibling;
+      if (thead) {
+        const tr = thead.querySelector('tr');
+        if (tr && !tr.innerHTML.includes('Fecha')) {
+          const th = document.createElement('th');
+          th.textContent = 'Fecha';
+          tr.insertBefore(th, tr.firstChild);
+        }
+      }
+    }
+  });
+    _safeRender(_populateMapProjects, 'MapProjects');
+    
+    let stats = null;
+    try {
+      stats = typeof APP5T_DB !== 'undefined' ? APP5T_DB.getStats() : null;
+    } catch(err) {
+      console.error('APP5T: Error al calcular stats', err);
+    }
 
     // ── 1. KPI cards (if stats available) ──
     if (stats) {
-      _setContent('kpi-total', stats.totales);
-      _setContent('kpi-disponibles', stats.disponibles);
-      _setContent('kpi-reservadas', (stats.reservadas || 0) + (stats.solicitadas || 0));
-      _setContent('kpi-promesadas', stats.enPromesa || stats.promesadas || 0);
-      _setContent('kpi-vendidas', stats.vendidas);
-      _setContent('kpi-ingreso', APP5T_Utils.formatMoneda(stats.ingresoRecaudado || 0));
+      try {
+        _setContent('kpi-total', stats.totales);
+        _setContent('kpi-disponibles', stats.disponibles);
+        _setContent('kpi-reservadas', (stats.reservadas || 0) + (stats.solicitadas || 0));
+        _setContent('kpi-promesadas', stats.enPromesa || stats.promesadas || 0);
+        _setContent('kpi-vendidas', stats.vendidas);
+        _setContent('kpi-ingreso', APP5T_Utils.formatMoneda(stats.ingresoRecaudado || 0));
+      } catch(err) {
+        console.error('APP5T: Error al actualizar KPIs', err);
+      }
     }
 
     // ── 2. Dashboard charts ──
     if (activeTab === 'dashboard' && typeof APP5T_Charts !== 'undefined') {
-      APP5T_Charts.renderDashboard(activeRole);
+      _safeRender(() => APP5T_Charts.renderDashboard(activeRole), 'Dashboard');
     }
 
     // ── 3. Recent transactions ──
-    _renderTransactions();
+    _safeRender(_renderTransactions, 'Transactions');
 
     // ── 4. Approvals table ──
-    _renderAprobaciones();
+    _safeRender(_renderAprobaciones, 'Aprobaciones');
 
     // ── 5. Price control table ──
-    _renderPrecios();
+    _safeRender(_renderPrecios, 'Precios');
 
     // ── 6. Mesa Documental: Promesas ──
-    _renderMesaPromesas();
-    _renderMesaPromesasCurso();
+    _safeRender(_renderMesaPromesas, 'MesaPromesas');
+    _safeRender(_renderMesaPromesasCurso, 'MesaPromesasCurso');
 
     // ── 7. Mesa Documental: Escrituras ──
-    _renderMesaEscrituras();
+    _safeRender(_renderMesaEscrituras, 'MesaEscrituras');
 
     // ── 8. Cuenta Corriente ──
-    _renderCtaCte();
+    _safeRender(_renderCtaCte, 'CtaCte');
 
     // ── 8b. Informes ──
-    _renderInformes();
+    _safeRender(_renderInformes, 'Informes');
 
     // ── 9. Inventario ──
-    _renderInventario();
+    _safeRender(_renderInventario, 'Inventario');
 
     // ── 10. Auditoría ──
-    _renderAuditoria();
+    _safeRender(_renderAuditoria, 'Auditoria');
 
     // ── 11. Leads ──
-    _renderLeads();
-    _renderPendingApprovals();
+    _safeRender(_renderLeads, 'Leads');
+    _safeRender(_renderPendingApprovals, 'PendingApprovals');
 
     // ── 12. Refresh map colors ──
     if (typeof APP5T_Map !== 'undefined') {
@@ -1128,7 +1135,7 @@ const APP5T = (() => {
 
   function _setContent(id, val) {
     const el = document.getElementById(id);
-    if (el) el.textContent = val ?? '—';
+    if (el) el.textContent = val ?? '-';
   }
 
   function _renderTransactions() {
@@ -1136,17 +1143,17 @@ const APP5T = (() => {
     if (!tbody) return;
     const negs = (APP5T_DB.getAll('negociaciones') || []).slice(-10).reverse();
     if (negs.length === 0) { tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Sin negociaciones</td></tr>'; return; }
-    tbody.innerHTML = negs.map(n => {
+    tbody.innerHTML = negs.map(n => { if(!n) return '';
       const prop = APP5T_DB.getById('propiedades', n.id_propiedad);
       const cli = APP5T_DB.getById('clientes', n.id_cliente);
       const vend = APP5T_DB.getById('vendedores', n.id_vendedor);
       const proy = prop ? APP5T_DB.getById('proyectos', prop.id_proyecto) : null;
-      const loteProy = prop ? `${prop.nombre} / ${proy ? proy.nombre_proyecto : '—'}` : `Lote ${n.id_propiedad}`;
+      const loteProy = prop ? `${prop.nombre} / ${proy ? proy.nombre_proyecto : '-'}` : `Lote ${n.id_propiedad}`;
       return `<tr>
-        <td>${n.fecha_negociacion || '—'}</td>
+        <td>${n.fecha_negociacion || '-'}</td>
         <td>${loteProy}</td>
-        <td>${cli ? `${cli.nombres} ${cli.apellidos}` : '—'}</td>
-        <td>${vend ? vend.nombre : '—'}</td>
+        <td>${cli ? `${cli.nombres} ${cli.apellidos}` : '-'}</td>
+        <td>${vend ? vend.nombre : '-'}</td>
         <td>${APP5T_Utils.formatMoneda(n.valor_final || 0)}</td>
         <td>${getStatusBadgeHTML(n.estado_avance)}</td>
       </tr>`;
@@ -1158,7 +1165,7 @@ const APP5T = (() => {
     if (!listContainer) return;
     const props = (APP5T_DB.getAll('propiedades') || []).filter(p => {
       if (p.estado === 'Pendiente') return true;
-      const negs = APP5T_DB.query('negociaciones', n => String(n.id_propiedad) === String(p.id)) || [];
+      const negs = APP5T_DB.query('negociaciones', n => n && String(n.id_propiedad) === String(p.id)) || [];
       const negCurso = negs.find(n => n.estado_avance === 'En Curso');
       if (p.estado === 'Reservada' && negCurso && !negCurso.autorizado_promesa) {
         return true; // Reserva waiting for manager signature
@@ -1180,22 +1187,22 @@ const APP5T = (() => {
     }
     
     listContainer.innerHTML = props.map(p => {
-      let neg = (APP5T_DB.query('negociaciones', n => String(n.id_propiedad) === String(p.id) && n.estado_escrituracion === 'Pendiente') || [])[0];
+      let neg = (APP5T_DB.query('negociaciones', n => n && String(n.id_propiedad) === String(p.id) && n.estado_escrituracion === 'Pendiente') || [])[0];
       if (!neg) {
-        neg = (APP5T_DB.query('negociaciones', n => String(n.id_propiedad) === String(p.id) && (n.notas || '').includes('[AUTORIZADO_ESCRITURAR:PENDIENTE]')) || [])[0];
+        neg = (APP5T_DB.query('negociaciones', n => n && String(n.id_propiedad) === String(p.id) && (n.notas || '').includes('[AUTORIZADO_ESCRITURAR:PENDIENTE]')) || [])[0];
       }
       if (!neg) {
-        neg = (APP5T_DB.query('negociaciones', n => String(n.id_propiedad) === String(p.id) && n.estado_avance === 'En Curso') || [])[0];
+        neg = (APP5T_DB.query('negociaciones', n => n && String(n.id_propiedad) === String(p.id) && n.estado_avance === 'En Curso') || [])[0];
       }
       if (!neg) {
-        neg = (APP5T_DB.query('negociaciones', n => String(n.id_propiedad) === String(p.id)) || [])[0];
+        neg = (APP5T_DB.query('negociaciones', n => n && String(n.id_propiedad) === String(p.id)) || [])[0];
       }
       const cli = neg ? APP5T_DB.getById('clientes', neg.id_cliente) : null;
       const vend = neg ? APP5T_DB.getById('vendedores', neg.id_vendedor) : null;
       const proy = p.id_proyecto ? APP5T_DB.getById('proyectos', p.id_proyecto) : null;
       
       const loteProy = `${p.nombre || `Lote ${p.id}`}`;
-      const nombreProy = proy ? (proy.nombre_proyecto || proy.nombre) : '—';
+      const nombreProy = proy ? (proy.nombre_proyecto || proy.nombre) : '-';
       const esVD = neg && neg.id_proceso === 'Venta_Directa';
       let tipoBadge = '';
       if (neg && (neg.estado_escrituracion === 'Pendiente' || (neg.notas || '').includes('[AUTORIZADO_ESCRITURAR:PENDIENTE]'))) {
@@ -1209,9 +1216,9 @@ const APP5T = (() => {
       }
       
       const cliName = cli ? `${cli.nombres} ${cli.apellidos}` : 'Pendiente / Sin Cliente';
-      const vendName = vend ? vend.nombre : '—';
-      const abono = neg ? APP5T_Utils.formatMoneda(neg.pie || 0) : '—';
-      const final = neg ? APP5T_Utils.formatMoneda(neg.valor_final || 0) : '—';
+      const vendName = vend ? vend.nombre : '-';
+      const abono = neg ? APP5T_Utils.formatMoneda(neg.pie || 0) : '-';
+      const final = neg ? APP5T_Utils.formatMoneda(neg.valor_final || 0) : '-';
 
       return `
       <div class="card" style="background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); border-radius: 12px; padding: 16px; overflow: hidden;">
@@ -1241,12 +1248,15 @@ const APP5T = (() => {
             <div style="font-size:0.95rem; color:var(--text-white); font-weight:700;">${final}</div>
           </div>
         </div>
-        <div style="display:flex; gap:10px;">
+        
+        
+        
+        <div style="display:flex; gap:10px; justify-content: flex-end; flex-wrap: wrap;">
           ${(neg && (neg.estado_escrituracion === 'Pendiente' || (neg.notas || '').includes('[AUTORIZADO_ESCRITURAR:PENDIENTE]'))) ? `
-          <button class="btn btn-outline" style="flex:1;" onclick="if(typeof APP5T_Forms !== 'undefined') APP5T_Forms.descargarFichaLegal('${p.id}')">
+          <button class="btn btn-outline" style="flex: 1; min-width: 140px;" onclick="if(typeof APP5T_Forms !== 'undefined') APP5T_Forms.descargarFichaLegal('${p.id}')">
             <i class="fa-solid fa-file-pdf"></i> Ficha Legal
           </button>
-          <button class="btn btn-sm btn-primary" onclick="window.APP5T._aprobarAutorizacionEscrituracion('${neg.id}')"><i class="fa-solid fa-check"></i> Aprobar Escrituración</button>
+          <button class="btn btn-primary" style="flex: 1; min-width: 140px;" onclick="window.APP5T._aprobarAutorizacionEscrituracion('${neg.id}')"><i class="fa-solid fa-check"></i> Aprobar Escrituración</button>
           ` : `
           <button class="btn btn-danger" style="flex:1;" onclick="window.APP5T._rechazarReservaDirecta('${p.id}', event)">
             <i class="fa-solid fa-xmark"></i> Rechazar
@@ -1270,19 +1280,19 @@ const APP5T = (() => {
       const proyectos = APP5T_DB.getAll('proyectos') || [];
       const proy = proyectos.find(p => p.nombre === filter.value || p.nombre_proyecto === filter.value);
       if (proy) {
-        props = props.filter(p => p.id_proyecto === proy.id);
+        props = props.filter(p => String(p.id_proyecto) === String(proy.id));
       }
     }
     if (props.length === 0) { tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Sin propiedades</td></tr>'; return; }
     tbody.innerHTML = props.map(p => {
       const proy = p.id_proyecto ? APP5T_DB.getById('proyectos', p.id_proyecto) : null;
-      const proyectoNombre = proy ? proy.nombre_proyecto : '—';
+      const proyectoNombre = proy ? proy.nombre_proyecto : '-';
       return `<tr>
         <td>${p.nombre || p.id}</td>
-        <td>${proyectoNombre}</td>
-        <td>${p.superficie || '—'} m²</td>
+        <td data-label="Proyecto">${proyectoNombre}</td>
+        <td>${p.superficie || '-'} m²</td>
         <td>${APP5T_Utils.formatMoneda(p.valor_final || 0)}</td>
-        <td>${getStatusBadgeHTML(p.estado)}</td>
+        <td data-label="Estado">${getStatusBadgeHTML(p.estado)}</td>
       </tr>`;
     }).join('');
   }
@@ -1302,12 +1312,12 @@ const APP5T = (() => {
     // Sort descending by id to show the most recent first
     items.sort((a, b) => b.id - a.id);
 
-    if (items.length === 0) { tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Sin promesas pendientes</td></tr>'; return; }
+    if (items.length === 0) { tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Sin Reservas Pendientes</td></tr>'; return; }
     tbody.innerHTML = items.map((n, idx) => {
       const p = APP5T_DB.getById('propiedades', n.id_propiedad);
       const c = APP5T_DB.getById('clientes', n.id_cliente);
       const proy = p ? APP5T_DB.getById('proyectos', p.id_proyecto) : null;
-      let loteProy = p ? `${p.nombre} / ${proy ? proy.nombre_proyecto : '—'}` : `Lote ${n.id_propiedad}`;
+      let loteProy = p ? `${p.nombre} / ${proy ? proy.nombre_proyecto : '-'}` : `Lote ${n.id_propiedad}`;
 
       // Highlight the first item
       if (idx === 0) {
@@ -1337,33 +1347,23 @@ const APP5T = (() => {
       const tipoBadge = `<span class="tag tag-escritura" style="font-size:0.72rem; background: rgba(52, 152, 219, 0.15); color: #3498db; border: 1px solid rgba(52, 152, 219, 0.25);">Generar Promesa</span>`;
 
       return `<tr>
+        <td>${n.fecha_negociacion || APP5T_Utils.fechaHoy()}</td>
         <td>${loteProy}</td>
         <td>${tipoBadge}</td>
-        <td>${c ? `${c.nombres} ${c.apellidos}` : '—'}</td>
+        <td>${c ? `${c.nombres} ${c.apellidos}` : '-'}</td>
         <td>${APP5T_Utils.formatMoneda(n.valor_final || 0)}</td>
         <td>${docsHtml}</td>
         <td style="text-align:right; white-space:nowrap;">
-          <div class="dropdown">
-            <button class="btn btn-sm btn-outline dropdown-toggle" onclick="window.APP5T.toggleDropdown(event)" style="padding: 5px 10px; font-size: 0.8rem;">
-              Acciones <i class="fa-solid fa-chevron-down" style="font-size: 0.7rem; margin-left: 4px;"></i>
+          <div style="display: flex; gap: 6px; justify-content: flex-end;">
+            <button class="btn btn-sm btn-outline" onclick="window.APP5T._signPromesa('${n.id}')" title="Registrar Promesa" style="padding: 5px 10px;">
+              <i class="fa-solid fa-file-signature" style="color: var(--accent-blue);"></i> Promesa
             </button>
-            <ul class="dropdown-menu" style="right: 0; left: auto;">
-              <li>
-                <button class="dropdown-item" onclick="window.APP5T._signPromesa('${n.id}')">
-                  <i class="fa-solid fa-file-signature" style="color: var(--accent-blue);"></i> Registrar Promesa
-                </button>
-              </li>
-              <li>
-                <button class="dropdown-item" onclick="APP5T_Forms.mostrarComprobanteReservaSimulado('${n.id}')">
-                  <i class="fa-solid fa-file-invoice-dollar" style="color: #10b981;"></i> Generar Recibo
-                </button>
-              </li>
-              <li style="border-top: 1px solid rgba(255,255,255,0.06); margin-top: 4px; padding-top: 4px;">
-                <button class="dropdown-item danger-action" onclick="window.APP5T._rechazarReservaDirecta('${n.id_propiedad}', event)">
-                  <i class="fa-solid fa-ban"></i> Cancelar Reserva
-                </button>
-              </li>
-            </ul>
+            <button class="btn btn-sm btn-outline" onclick="APP5T_Forms.mostrarComprobanteReservaSimulado('${n.id}')" title="Generar Recibo" style="padding: 5px 10px;">
+              <i class="fa-solid fa-file-invoice-dollar" style="color: #10b981;"></i> Recibo
+            </button>
+            <button class="btn btn-sm btn-outline danger-action" onclick="window.APP5T._rechazarReservaDirecta('${n.id_propiedad}', event)" title="Cancelar Reserva" style="padding: 5px 10px;">
+              <i class="fa-solid fa-ban" style="color: var(--accent-red);"></i>
+            </button>
           </div>
         </td>
       </tr>`;
@@ -1387,9 +1387,9 @@ const APP5T = (() => {
       const cli = APP5T_DB.getById('clientes', neg.id_cliente);
       const proy = prop ? APP5T_DB.getById('proyectos', prop.id_proyecto) : null;
       
-      const loteNom = prop ? prop.nombre : '—';
-      const proyNom = proy ? (proy.nombre_proyecto || proy.nombre) : '—';
-      const cliNom = cli ? `${cli.nombres} ${cli.apellidos}` : '—';
+      const loteNom = prop ? prop.nombre : '-';
+      const proyNom = proy ? (proy.nombre_proyecto || proy.nombre) : '-';
+      const cliNom = cli ? `${cli.nombres} ${cli.apellidos}` : '-';
       
       const text = `⚖️ *Solicitud de Autorización de Escritura*\n\nHola. Te informo que el *Lote ${loteNom}* del proyecto *${proyNom}* ha finalizado el pago de su cuenta corriente al 100%.\n\nPor favor, revisa y aprueba la solicitud en tu panel de aprobaciones para habilitar la firma de la escritura de venta a nombre de *${cliNom}*.`;
       const tel = '56974300363'; // Gerente
@@ -1431,7 +1431,7 @@ const APP5T = (() => {
     let itemsHtml = '';
 
     props.forEach(p => {
-      const negs = APP5T_DB.query('negociaciones', n => String(n.id_propiedad) === String(p.id)) || [];
+      const negs = APP5T_DB.query('negociaciones', n => n && String(n.id_propiedad) === String(p.id)) || [];
       const neg = negs.sort((a, b) => b.id - a.id)[0];
       if (!neg || (neg.notas || '').includes('[AUTORIZADO_ESCRITURAR:TRUE]')) return;
 
@@ -1463,7 +1463,7 @@ const APP5T = (() => {
         lockHtml = ' <i class="fa-solid fa-lock text-danger" style="font-size:0.75rem; margin-left:4px;" title="Bloqueado: ' + tooltipText + '"></i>';
       }
 
-      const loteProy = p.nombre + ' / ' + (proy ? proy.nombre_proyecto : '—') + lockHtml;
+      const loteProy = p.nombre + ' / ' + (proy ? proy.nombre_proyecto : '-') + lockHtml;
 
       const docs = APP5T_DB.query('documentos', d => String(d.id_propiedad) === String(p.id)) || [];
       const docTypes = ['Cédula/RUT', 'Comprobantes', 'Reserva', 'Promesa', 'Escritura'];
@@ -1482,27 +1482,23 @@ const APP5T = (() => {
 
       let actionItemHtml = '';
       if (!todasPagadas) {
-        actionItemHtml = `<li><button class="dropdown-item disabled" style="opacity: 0.55; cursor: not-allowed;" title="${tooltipText}"><i class="fa-solid fa-lock" style="color: var(--text-dim);"></i> Bloqueado por Saldo</button></li>`;
+        actionItemHtml = `<button class="btn btn-sm btn-outline disabled" style="opacity: 0.55; cursor: not-allowed; padding: 5px 10px;" title="${tooltipText}"><i class="fa-solid fa-lock" style="color: var(--text-dim);"></i> Bloqueado</button>`;
       } else if (neg.autorizado_escriturar === 'Pendiente') {
-        actionItemHtml = `<li><button class="dropdown-item disabled" style="opacity: 0.6; cursor: not-allowed;"><i class="fa-solid fa-clock" style="color: var(--accent-orange);"></i> Pendiente Autorización</button></li>`;
+        actionItemHtml = `<button class="btn btn-sm btn-outline disabled" style="opacity: 0.6; cursor: not-allowed; padding: 5px 10px;"><i class="fa-solid fa-clock" style="color: var(--accent-orange);"></i> Pendiente Autorización</button>`;
       } else {
-        actionItemHtml = `<li><button class="dropdown-item" onclick="window.APP5T._autorizarPromesaEscrituracion('${neg.id}')"><i class="fa-solid fa-check" style="color: var(--accent-green);"></i> Solicitar Escrituración</button></li>`;
+        actionItemHtml = `<button class="btn btn-sm btn-outline" onclick="window.APP5T._autorizarPromesaEscrituracion('${neg.id}')" title="Solicitar Escrituración" style="padding: 5px 10px;"><i class="fa-solid fa-check" style="color: var(--accent-green);"></i> Solicitar</button>`;
       }
 
       itemsHtml += '<tr>' +
+        '<td>' + (neg.fecha_negociacion || neg.fecha_ingreso || APP5T_Utils.fechaHoy()) + '</td>' +
         '<td>' + loteProy + '</td>' +
         '<td>' + tipoBadge + '</td>' +
-        '<td>' + (c ? c.nombres + ' ' + c.apellidos : '—') + '</td>' +
+        '<td>' + (c ? c.nombres + ' ' + c.apellidos : '-') + '</td>' +
         '<td>' + APP5T_Utils.formatMoneda(neg.valor_final || 0) + '</td>' +
         '<td>' + docsHtml + '</td>' +
         '<td style="text-align:right; white-space:nowrap;">' +
-          '<div class="dropdown">' +
-            '<button class="btn btn-sm btn-outline dropdown-toggle" onclick="window.APP5T.toggleDropdown(event)" style="padding: 5px 10px; font-size: 0.8rem;">' +
-              'Acciones <i class="fa-solid fa-chevron-down" style="font-size: 0.7rem; margin-left: 4px;"></i>' +
-            '</button>' +
-            '<ul class="dropdown-menu" style="right: 0; left: auto;">' +
-              actionItemHtml +
-            '</ul>' +
+          '<div style="display: flex; gap: 6px; justify-content: flex-end;">' +
+             actionItemHtml +
           '</div>' +
         '</td>' +
       '</tr>';
@@ -1518,7 +1514,7 @@ const APP5T = (() => {
     const props = (APP5T_DB.getAll('propiedades') || []).filter(p => {
       if (p.estado === 'Venta_Directa') return true;
       if (p.estado === 'Promesada') {
-         const negs = APP5T_DB.query('negociaciones', n => String(n.id_propiedad) === String(p.id)) || [];
+         const negs = APP5T_DB.query('negociaciones', n => n && String(n.id_propiedad) === String(p.id)) || [];
          const neg = negs.sort((a, b) => b.id - a.id)[0];
          return (neg && (neg.notas || '').includes('[AUTORIZADO_ESCRITURAR:TRUE]'));
       }
@@ -1529,7 +1525,7 @@ const APP5T = (() => {
     const todasCtaCte = APP5T_DB.getAll('cuenta_corriente') || [];
 
     tbody.innerHTML = props.map(p => {
-      const negs = APP5T_DB.query('negociaciones', n => String(n.id_propiedad) === String(p.id)) || [];
+      const negs = APP5T_DB.query('negociaciones', n => n && String(n.id_propiedad) === String(p.id)) || [];
       const neg = negs.sort((a, b) => b.id - a.id)[0];
       const c = neg ? APP5T_DB.getById('clientes', neg.id_cliente) : null;
       const proy = p.id_proyecto ? APP5T_DB.getById('proyectos', p.id_proyecto) : null;
@@ -1565,7 +1561,7 @@ const APP5T = (() => {
         lockHtml = ` <i class="fa-solid fa-lock text-danger" style="font-size:0.75rem; margin-left:4px;" title="Escrituración Bloqueada: ${tooltipText}"></i>`;
       }
       
-      const loteProy = `${p.nombre} / ${proy ? proy.nombre_proyecto : '—'}${lockHtml}`;
+      const loteProy = `${p.nombre} / ${proy ? proy.nombre_proyecto : '-'}${lockHtml}`;
 
       // Query documents for this lot/property
       const docs = (typeof APP5T_DB !== 'undefined' ? APP5T_DB.query('documentos', d => String(d.id_propiedad) === String(p.id)) : []) || [];
@@ -1588,68 +1584,32 @@ const APP5T = (() => {
 
       let actionItemHtml = '';
       if (!todasPagadas) {
-        actionItemHtml = `
-          <li>
-            <button class="dropdown-item disabled" style="opacity: 0.55; cursor: not-allowed;" title="${tooltipText}">
-              <i class="fa-solid fa-lock" style="color: var(--text-dim);"></i> Escrituración Bloqueada
-            </button>
-          </li>
-        `;
+        actionItemHtml = `<button class="btn btn-sm btn-outline disabled" style="opacity: 0.55; cursor: not-allowed; padding: 5px 10px;" title="${tooltipText}"><i class="fa-solid fa-lock" style="color: var(--text-dim);"></i> Bloqueada</button>`;
       } else if (!neg || (!neg.estado_escrituracion && !(neg.notas || '').includes('[AUTORIZADO_ESCRITURAR:'))) {
-        actionItemHtml = `
-          <li>
-            <button class="dropdown-item" onclick="window.APP5T._solicitarAutorizacionEscritura('${neg ? neg.id : ''}')">
-              <i class="fa-solid fa-file-pdf" style="color: var(--accent-orange);"></i> Generar Ficha & Solicitar Firma
-            </button>
-          </li>
-        `;
+        actionItemHtml = `<button class="btn btn-sm btn-outline" onclick="window.APP5T._solicitarAutorizacionEscritura('${neg ? neg.id : ''}')" style="padding: 5px 10px;"><i class="fa-solid fa-file-pdf" style="color: var(--accent-orange);"></i> Solicitar Firma</button>`;
       } else if (neg.estado_escrituracion === 'Pendiente' || (neg.notas || '').includes('[AUTORIZADO_ESCRITURAR:PENDIENTE]')) {
-        actionItemHtml = `
-          <li>
-            <button class="dropdown-item disabled" style="opacity: 0.6; cursor: not-allowed;">
-              <i class="fa-solid fa-clock" style="color: var(--accent-orange);"></i> Pendiente Autorización
-            </button>
-          </li>
-        `;
-      } else if (neg.estado_escrituracion === 'Autorizada' || (neg.notas || '').includes('[AUTORIZADO_ESCRITURAR:SI]')) {
+        actionItemHtml = `<button class="btn btn-sm btn-outline disabled" style="opacity: 0.6; cursor: not-allowed; padding: 5px 10px;"><i class="fa-solid fa-clock" style="color: var(--accent-orange);"></i> Pendiente Autorización</button>`;
+      } else if (neg.estado_escrituracion === 'Autorizada' || (neg.notas || '').includes('[AUTORIZADO_ESCRITURAR:TRUE]')) {
         if (esVD) {
-          actionItemHtml = `
-            <li>
-              <button class="dropdown-item" onclick="window.APP5T._signEscrituraDirecta('${p.id}')">
-                <i class="fa-solid fa-bolt" style="color: var(--accent-purple);"></i> Registrar Escritura
-              </button>
-            </li>
-          `;
+          actionItemHtml = `<button class="btn btn-sm btn-outline" onclick="window.APP5T._signEscrituraDirecta('${p.id}')" style="padding: 5px 10px;"><i class="fa-solid fa-bolt" style="color: var(--accent-purple);"></i> Escriturar</button>`;
         } else {
-          actionItemHtml = `
-            <li>
-              <button class="dropdown-item" onclick="window.APP5T._signEscritura('${p.id}')">
-                <i class="fa-solid fa-gavel" style="color: var(--accent-red);"></i> Registrar Escritura
-              </button>
-            </li>
-          `;
+          actionItemHtml = `<button class="btn btn-sm btn-outline" onclick="window.APP5T._signEscritura('${p.id}')" style="padding: 5px 10px;"><i class="fa-solid fa-gavel" style="color: var(--accent-red);"></i> Escriturar</button>`;
         }
       }
 
       return `<tr>
+        <td>${neg ? neg.fecha_negociacion : (p.fecha_ingreso || '-')}</td>
         <td>${loteProy}</td>
         <td>${tipoBadge}</td>
-        <td>${c ? `${c.nombres} ${c.apellidos}` : '—'}</td>
+        <td>${c ? `${c.nombres} ${c.apellidos}` : '-'}</td>
         <td>${APP5T_Utils.formatMoneda(neg ? neg.valor_final : p.valor_final)}</td>
         <td>${docsHtml}</td>
         <td style="text-align:right; white-space:nowrap;">
-          <div class="dropdown">
-            <button class="btn btn-sm btn-outline dropdown-toggle" onclick="window.APP5T.toggleDropdown(event)" style="padding: 5px 10px; font-size: 0.8rem;">
-              Acciones <i class="fa-solid fa-chevron-down" style="font-size: 0.7rem; margin-left: 4px;"></i>
+          <div style="display: flex; gap: 6px; justify-content: flex-end;">
+            ${actionItemHtml}
+            <button class="btn btn-sm btn-outline danger-action" onclick="window.APP5T._rechazarReservaDirecta('${p.id}', event)" title="Cancelar Venta" style="padding: 5px 10px;">
+              <i class="fa-solid fa-ban" style="color: var(--accent-red);"></i>
             </button>
-            <ul class="dropdown-menu" style="right: 0; left: auto;">
-              ${actionItemHtml}
-              <li style="border-top: 1px solid rgba(255,255,255,0.06); margin-top: 4px; padding-top: 4px;">
-                <button class="dropdown-item danger-action" onclick="window.APP5T._rechazarReservaDirecta('${p.id}', event)">
-                  <i class="fa-solid fa-ban"></i> Cancelar Venta
-                </button>
-              </li>
-            </ul>
           </div>
         </td>
       </tr>`;
@@ -1698,7 +1658,7 @@ const APP5T = (() => {
       lotGroup.style.display = 'flex';
       
       const clientNegs = negs.filter(n => String(n.id_cliente) === selectedClientId);
-      const clientProps = clientNegs.map(n => {
+      const clientProps = clientnegs.map(n => { if(!n) return '';
         const p = APP5T_DB.getById('propiedades', n.id_propiedad);
         return p ? { id: p.id, nombre: p.nombre, estado: p.estado, negId: n.id } : null;
       }).filter(Boolean);
@@ -1733,10 +1693,10 @@ const APP5T = (() => {
       } else {
         const clientNegs = negs.filter(n => String(n.id_cliente) === selectedClientId);
         const targetNegs = selectedLoteId !== 'all' 
-          ? clientNegs.filter(n => String(n.id_propiedad) === selectedLoteId)
+          ? clientNegs.filter(n => n && String(n.id_propiedad) === selectedLoteId)
           : clientNegs;
         
-        const propIds = targetNegs.map(n => String(n.id_propiedad));
+        const propIds = targetNegs.map(n => n && String(n.id_propiedad));
         const docs = (typeof APP5T_DB !== 'undefined' ? APP5T_DB.query('documentos', d => propIds.includes(String(d.id_propiedad))) : []) || [];
         
         let totalDocs = targetNegs.filter(n => n.url).length + docs.length;
@@ -1791,6 +1751,20 @@ const APP5T = (() => {
       ctas = ctas.filter(c => String(c.id_propiedad) === selectedLoteId);
     }
 
+    if (selectedClientId === 'all') {
+      // PANEL PROACTIVO: Solo mostrar cuotas pendientes/vencidas, ordenadas por fecha más próxima
+      ctas = ctas.filter(c => c.estado_cuota !== 'Pagada');
+      ctas.sort((a, b) => {
+        const parseDate = (dstr) => {
+          if (!dstr) return Infinity;
+          const p = dstr.includes('/') ? dstr.split('/') : dstr.split('-');
+          if (p.length === 3) return new Date(p[2], p[1] - 1, p[0]).getTime();
+          return Infinity;
+        };
+        return parseDate(a.fecha_vencimiento) - parseDate(b.fecha_vencimiento);
+      });
+    }
+
     // If a specific client is selected and they have no cuotas
     if (selectedClientId !== 'all' && ctas.length === 0) {
       const clientNegs = negs.filter(n => String(n.id_cliente) === selectedClientId);
@@ -1798,7 +1772,7 @@ const APP5T = (() => {
       // If we filtered by a specific lot, look for that lot's negotiation. Otherwise fallback to the active one.
       let activeNeg = null;
       if (selectedLoteId !== 'all') {
-        activeNeg = clientNegs.find(n => String(n.id_propiedad) === selectedLoteId);
+        activeNeg = clientNegs.find(n => n && String(n.id_propiedad) === selectedLoteId);
       } else {
         activeNeg = clientNegs.find(n => n.estado_avance === 'En Curso' || n.estado_avance === 'Aprobado') || clientNegs[0];
       }
@@ -1806,7 +1780,7 @@ const APP5T = (() => {
       if (activeNeg) {
         const prop = APP5T_DB.getById('propiedades', activeNeg.id_propiedad);
         const proy = prop ? APP5T_DB.getById('proyectos', prop.id_proyecto) : null;
-        const loteProy = prop ? `${prop.nombre} / ${proy ? proy.nombre_proyecto : '—'}` : `Lote ${activeNeg.id_propiedad}`;
+        const loteProy = prop ? `${prop.nombre} / ${proy ? proy.nombre_proyecto : '-'}` : `Lote ${activeNeg.id_propiedad}`;
 
         if (prop && prop.estado !== 'Promesada') {
           tbody.innerHTML = `
@@ -1857,7 +1831,7 @@ const APP5T = (() => {
     let htmlRows = '';
     if (selectedClientId !== 'all' && selectedLoteId !== 'all') {
        const clientNegs = negs.filter(n => String(n.id_cliente) === selectedClientId);
-       const activeNeg = clientNegs.find(n => String(n.id_propiedad) === selectedLoteId);
+       const activeNeg = clientNegs.find(n => n && String(n.id_propiedad) === selectedLoteId);
        if (activeNeg) {
            htmlRows += `<tr><td colspan="8" style="text-align: right; background-color: var(--glass-bg); padding: 10px;"><button class="btn btn-sm btn-outline" onclick="window.APP5T._showActivarCtaCteModal(''${activeNeg.id}'')" style="color: var(--accent-orange); border-color: var(--accent-orange);"><i class="fa-solid fa-rotate"></i> Regenerar Plan de Pagos (Corrige fechas)</button></td></tr>`;
        }
@@ -1866,7 +1840,7 @@ const APP5T = (() => {
       const cli = APP5T_DB.getById('clientes', c.id_cliente);
       const prop = APP5T_DB.getById('propiedades', c.id_propiedad);
       const proy = prop ? APP5T_DB.getById('proyectos', prop.id_proyecto) : null;
-      const loteProy = prop ? `${prop.nombre} / ${proy ? proy.nombre_proyecto : '—'}` : `Lote ${c.id_propiedad}`;
+      const loteProy = prop ? `${prop.nombre} / ${proy ? proy.nombre_proyecto : '-'}` : `Lote ${c.id_propiedad}`;
       const metodoHtml = c.metodo_pago && c.estado_cuota !== 'Pendiente Pago' ? `<br><small style="color: var(--text-dim); font-size: 0.75rem;"><i class="fa-solid fa-credit-card"></i> ${c.metodo_pago}</small>` : '';
       let estadoMostrar = c.estado_cuota;
       if (c.estado_cuota !== 'Pagada' && c.fecha_vencimiento) {
@@ -1890,15 +1864,15 @@ const APP5T = (() => {
         }
       }
       return `<tr>
-        <td>${cli ? `${cli.nombres} ${cli.apellidos}` : '—'}</td>
+        <td>${cli ? `${cli.nombres} ${cli.apellidos}` : '-'}</td>
         <td>${loteProy}</td>
-        <td>${c.cuota_nro || '—'}</td>
+        <td>${c.cuota_nro || '-'}</td>
         <td>${APP5T_Utils.formatMoneda(c.valor_cuota || 0)}</td>
-        <td>${c.fecha_vencimiento || '—'}</td>
+        <td>${c.fecha_vencimiento || '-'}</td>
         <td>${APP5T_Utils.formatMoneda(c.valor_pagado || 0)}${metodoHtml}</td>
         <td>${getStatusBadgeHTML(estadoMostrar)}</td>
         <td style="text-align:right">
-          ${c.estado_cuota !== 'Pagada' ? `<button class="btn btn-sm btn-success" onclick="window.APP5T._payCuota('${c.id}')"><i class="fa-solid fa-receipt"></i> Pagar</button>` : '—'}
+          ${c.estado_cuota !== 'Pagada' ? `<button class="btn btn-sm btn-success" onclick="window.APP5T._payCuota('${c.id}')"><i class="fa-solid fa-receipt"></i> Pagar</button>` : '-'}
         </td>
       </tr>`;
       }).join('');
@@ -1977,7 +1951,7 @@ const APP5T = (() => {
          }
       }
 
-      const ingreso = c.fecha_ingreso ? (typeof APP5T_Utils !== 'undefined' && APP5T_Utils.formatFecha ? APP5T_Utils.formatFecha(c.fecha_ingreso) : c.fecha_ingreso) : '—';
+      const ingreso = c.fecha_ingreso ? (typeof APP5T_Utils !== 'undefined' && APP5T_Utils.formatFecha ? APP5T_Utils.formatFecha(c.fecha_ingreso) : c.fecha_ingreso) : '-';
       
       return `
         <div class="client-card">
@@ -2017,10 +1991,11 @@ const APP5T = (() => {
     props = props.filter(p => ['Promesada', 'Venta_Directa', 'Vendida', 'Escriturada', 'Reservada'].includes(p.estado));
 
     // Populate filter
+    let currentVal = 'all';
     const selectProyecto = document.getElementById('filtro-catalogo-proyecto');
     if (selectProyecto) {
       const proyectos = APP5T_DB.getAll('proyectos') || [];
-      const currentVal = selectProyecto.value || 'all';
+      currentVal = selectProyecto.value || 'all';
       
       if (selectProyecto.options.length <= 1) {
         let optionsHtml = '<option value="all">Todos los proyectos</option>';
@@ -2033,6 +2008,9 @@ const APP5T = (() => {
       
       if (currentVal !== 'all') {
         props = props.filter(p => String(p.id_proyecto) === String(currentVal));
+        if (document.getElementById('th-catalogo-proyecto')) document.getElementById('th-catalogo-proyecto').style.display = 'none';
+      } else {
+        if (document.getElementById('th-catalogo-proyecto')) document.getElementById('th-catalogo-proyecto').style.display = '';
       }
     }
     
@@ -2052,26 +2030,25 @@ const APP5T = (() => {
     
     tbody.innerHTML = props.map(p => {
       const proy = p.id_proyecto ? APP5T_DB.getById('proyectos', p.id_proyecto) : null;
-      const proyectoNombre = proy ? proy.nombre_proyecto : '—';
+      const proyectoNombre = proy ? proy.nombre_proyecto : '-';
       const clienteId = p.id_cliente; // Assuming the property might have id_cliente or we fetch from negociaciones
       
       // Intentar obtener cliente desde negociaciones si la propiedad no lo tiene directo
-      let clienteNombre = '—';
+      let clienteNombre = '-';
       if (clienteId) {
         const c = APP5T_DB.getById('clientes', clienteId);
-        if (c) clienteNombre = c.nombre || c.nombre_completo || '—';
+        if (c) clienteNombre = (c.nombres ? c.nombres + ' ' + (c.apellidos || '') : '-');
       } else {
-        const negs = APP5T_DB.query('negociaciones', n => String(n.id_propiedad) === String(p.id)) || [];
+        const negs = APP5T_DB.query('negociaciones', n => n && String(n.id_propiedad) === String(p.id)) || [];
         if (negs.length > 0) {
           const neg = negs[0];
           const c = APP5T_DB.getById('clientes', neg.id_cliente);
-          if (c) clienteNombre = c.nombre || c.nombre_completo || '—';
+          if (c) clienteNombre = (c.nombres ? c.nombres + ' ' + (c.apellidos || '') : '-');
         }
       }
 
       const docs = APP5T_DB.query('documentos', d => String(d.id_propiedad) === String(p.id)) || [];
-      const driveFolder = docs.find(d => d.tipo_documento === 'Carpeta');
-      const folderLink = driveFolder ? (driveFolder.url_drive || driveFolder.nombre) : '';
+      const folderLink = p.url || '';
 
       // Determinar qué documentos obligatorios debe tener según estado
       let requiredCount = 0;
@@ -2084,10 +2061,12 @@ const APP5T = (() => {
         const hasDoc = docs.some(d => d.tipo_documento === type);
         if (hasDoc) checkedCount++;
         return `
-          <td class="text-center">
-            <input type="checkbox" class="form-check-input" style="width:1.2rem; height:1.2rem; cursor:pointer;" 
+          <td class="text-center" data-label="${type}">
+            <div class="form-check form-switch d-flex justify-content-center mb-0">
+              <input class="form-check-input" type="checkbox" role="switch" style="cursor:pointer;" 
                    ${hasDoc ? 'checked' : ''} 
                    onchange="window.APP5T.toggleDocumentCheck('${p.id}', '${type}', this.checked)">
+            </div>
           </td>
         `;
       }).join('');
@@ -2101,15 +2080,15 @@ const APP5T = (() => {
 
       return `
         <tr>
-          <td><strong>${p.nombre || p.nombre_lote}</strong></td>
-          <td>${proyectoNombre}</td>
-          <td>${clienteNombre}</td>
-          <td>${getStatusBadgeHTML(p.estado)}</td>
+          <td data-label="Lote"><strong>${p.nombre || p.nombre_lote}</strong></td>
+          <td data-label="Proyecto">${proyectoNombre}</td>
+          <td data-label="Cliente">${clienteNombre}</td>
+          <td data-label="Estado">${getStatusBadgeHTML(p.estado)}</td>
           ${checkboxesHtml}
-          <td>
-            <div style="display:flex; gap: 5px;">
+          <td data-label="Enlace Drive">
+            <div style="display:flex; gap: 5px; justify-content: flex-end;">
               <input type="text" class="form-control form-control-sm" placeholder="https://drive.google.com/..." 
-                     value="${folderLink}" id="drive-link-${p.id}" style="font-size: 0.75rem; width: 160px;">
+                     value="${folderLink}" id="drive-link-${p.id}" style="font-size: 0.7rem; width: 100px; padding: 0.2rem;">
               <button class="btn btn-sm btn-outline-primary" title="Guardar Enlace"
                       onclick="window.APP5T.saveDriveFolderLink('${p.id}')">
                 <i class="fa-solid fa-save"></i>
@@ -2152,8 +2131,7 @@ const APP5T = (() => {
     } else {
       if (docIndex !== -1) {
         // Remove
-        docs.splice(docIndex, 1);
-        APP5T_DB.save('documentos', docs);
+        APP5T_DB.remove('documentos', docs[docIndex].id);
       }
     }
     _renderCatalogoDocumentos();
@@ -2166,31 +2144,15 @@ const APP5T = (() => {
     if (!input) return;
     const link = input.value.trim();
     
-    let docs = APP5T_DB.getAll('documentos') || [];
-    let docIndex = docs.findIndex(d => String(d.id_propiedad) === String(id_propiedad) && d.tipo_documento === 'Carpeta');
+    // Guardar directamente en propiedades.url (sincroniza con Supabase)
+    const result = APP5T_DB.update('propiedades', parseInt(id_propiedad, 10), { url: link });
     
-    if (link === '') {
-      if (docIndex !== -1) {
-        docs.splice(docIndex, 1);
-        APP5T_DB.save('documentos', docs);
-      }
-    } else {
-      if (docIndex !== -1) {
-        docs[docIndex].url_drive = link;
-        APP5T_DB.save('documentos', docs);
-      } else {
-        APP5T_DB.insert('documentos', {
-          id_propiedad: String(id_propiedad),
-          tipo_documento: 'Carpeta',
-          url_drive: link,
-          fecha_carga: new Date().toISOString()
-        });
-      }
-    }
-    
-    if (typeof APP5T_Utils !== 'undefined') {
+    if (result && result.success) {
       APP5T_Utils.showToast('Enlace de Drive guardado correctamente', 'success');
+    } else {
+      APP5T_Utils.showToast('Error al guardar el enlace', 'error');
     }
+    
     _renderCatalogoDocumentos();
     if (typeof APP5T_Cloud !== 'undefined') APP5T_Cloud.syncAll().catch(()=>{});
   };
@@ -2204,7 +2166,7 @@ function _renderInventario() {
       const proyectos = APP5T_DB.getAll('proyectos') || [];
       const proy = proyectos.find(p => p.nombre === filter.value || p.nombre_proyecto === filter.value);
       if (proy) {
-        props = props.filter(p => p.id_proyecto === proy.id);
+        props = props.filter(p => String(p.id_proyecto) === String(proy.id));
       }
     }
 
@@ -2286,30 +2248,32 @@ function _renderInventario() {
     // PC Table rendering
     tbody.innerHTML = props.map(p => {
       const proy = p.id_proyecto ? APP5T_DB.getById('proyectos', p.id_proyecto) : null;
-      const proyectoNombre = proy ? proy.nombre_proyecto : '—';
+      const proyectoNombre = proy ? proy.nombre_proyecto : '-';
 
       // Quick action buttons for admins
       let adminActionsHtml = '';
       const currentRole = (window.APP5T && window.APP5T.getActiveRole) ? window.APP5T.getActiveRole() : activeRole;
-      if (currentRole === 'administrador') {
+      if (currentRole === 'administrador' || currentRole === 'gerente') {
         adminActionsHtml = `
           <div style="display:flex; gap:6px; justify-content:flex-end;">
-            <button class="btn btn-sm btn-outline" onclick="APP5T_Forms.vincularDocumentoLote(${p.id})" style="padding: 4px 8px; font-size: 0.7rem; border-color: var(--accent-green); color: var(--accent-green);" title="Vincular Documento Principal (Drive)">
-              <i class="fa-solid fa-link"></i> Vincular
-            </button>
+            ${p.url && p.url.trim() !== '' ? 
+              `<a href="${p.url}" target="_blank" class="btn btn-sm btn-outline" style="padding: 4px 8px; font-size: 0.7rem; border-color: var(--accent-green); color: var(--accent-green); text-decoration: none;" title="Ver Documentos del Lote"><i class="fa-solid fa-folder-open"></i> Docs</a>` : 
+              `<button class="btn btn-sm btn-outline" onclick="if(window.APP5T_Utils) APP5T_Utils.showToast('No hay una carpeta de Drive configurada para este lote. Configúrala en el Catálogo Documental.', 'warning');" style="padding: 4px 8px; font-size: 0.7rem; border-color: var(--text-dim); color: var(--text-dim);" title="Documentos (No config.)"><i class="fa-solid fa-folder-open"></i> Docs</button>`}
+            ${currentRole === 'administrador' ? `
             <button class="btn btn-sm btn-outline" onclick="APP5T_Forms._editRecord('propiedades', '${p.id}')" style="padding: 4px 8px; font-size: 0.7rem; border-color: var(--accent-blue); color: var(--accent-blue);" title="Editar Lote">
               <i class="fa-solid fa-pen"></i> Editar
             </button>
+            ` : ''}
           </div>
         `;
       } else {
-        adminActionsHtml = '<span class="text-muted" style="font-size:0.75rem;">—</span>';
+        adminActionsHtml = '<span class="text-muted" style="font-size:0.75rem;">-</span>';
       }
 
       return `<tr>
         <td data-label="Lote">${p.nombre || p.id}</td>
         <td data-label="Proyecto">${proyectoNombre}</td>
-        <td data-label="Superficie">${p.superficie || '—'} m²</td>
+        <td data-label="Superficie">${p.superficie || '-'} m²</td>
         <td data-label="Precio">${APP5T_Utils.formatMoneda(p.valor_final || 0)}</td>
         <td data-label="Estado">${getStatusBadgeHTML(p.estado)}</td>
         <td data-label="Acciones" style="text-align:right; white-space:nowrap;">
@@ -2322,16 +2286,18 @@ function _renderInventario() {
     if (mobileListDiv) {
       mobileListDiv.innerHTML = props.map(p => {
         const proy = p.id_proyecto ? APP5T_DB.getById('proyectos', p.id_proyecto) : null;
-        const proyectoNombre = proy ? proy.nombre_proyecto : '—';
+        const proyectoNombre = proy ? proy.nombre_proyecto : '-';
         const statusBadge = getStatusBadgeHTML(p.estado);
         
         let mobileActions = '';
         const currentRole = (window.APP5T && window.APP5T.getActiveRole) ? window.APP5T.getActiveRole() : activeRole;
-        if (currentRole === 'administrador') {
+        if (currentRole === 'administrador' || currentRole === 'gerente') {
           mobileActions = `
             <div style="display: flex; gap: 6px; align-items: center; margin-left: 0; padding-left: 0; border-left: none;">
-              <button onclick="APP5T_Forms.vincularDocumentoLote(${p.id})" style="background: transparent; border: none; color: var(--accent-green); padding: 4px; font-size: 0.8rem; cursor: pointer; display: inline-flex; align-items: center;" title="Vincular Documento Principal (Drive)"><i class="fa-solid fa-link"></i></button>
-              <button onclick="APP5T_Forms._editRecord('propiedades', '${p.id}')" style="background: transparent; border: none; color: var(--accent-blue); padding: 4px; font-size: 0.8rem; cursor: pointer; display: inline-flex; align-items: center;" title="Editar Lote"><i class="fa-solid fa-edit"></i></button>
+              ${p.url && p.url.trim() !== '' ? 
+                `<a href="${p.url}" target="_blank" style="background: transparent; border: none; color: var(--accent-green); padding: 4px; font-size: 0.8rem; cursor: pointer; display: inline-flex; align-items: center; text-decoration: none;" title="Ver Documentos del Lote"><i class="fa-solid fa-folder-open"></i></a>` :
+                `<button onclick="if(window.APP5T_Utils) APP5T_Utils.showToast('No hay una carpeta configurada', 'warning');" style="background: transparent; border: none; color: var(--text-dim); padding: 4px; font-size: 0.8rem; cursor: pointer; display: inline-flex; align-items: center;" title="Documentos (No config.)"><i class="fa-solid fa-folder-open"></i></button>`}
+              ${currentRole === 'administrador' ? `<button onclick="APP5T_Forms._editRecord('propiedades', '${p.id}')" style="background: transparent; border: none; color: var(--accent-blue); padding: 4px; font-size: 0.8rem; cursor: pointer; display: inline-flex; align-items: center;" title="Editar Lote"><i class="fa-solid fa-edit"></i></button>` : ''}
             </div>
           `;
         }
@@ -2346,7 +2312,7 @@ function _renderInventario() {
               <div style="transform: scale(0.85); transform-origin: right center;">${statusBadge}</div>
             </div>
             <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.76rem;">
-              <span style="color: var(--text-dim);">${p.superficie || '—'} m² · <strong style="color: var(--text-white);">${APP5T_Utils.formatMoneda(p.valor_final || 0)}</strong></span>
+              <span style="color: var(--text-dim);">${p.superficie || '-'} m² · <strong style="color: var(--text-white);">${APP5T_Utils.formatMoneda(p.valor_final || 0)}</strong></span>
               <div style="display: flex; gap: 4px; align-items: center;">
                 ${mobileActions}
               </div>
@@ -2363,10 +2329,10 @@ function _renderInventario() {
     const entries = (APP5T_DB.getAuditoria() || []).slice(0, 50);
     if (entries.length === 0) { tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Sin registros</td></tr>'; return; }
     tbody.innerHTML = entries.map(a => `<tr>
-      <td>${a.fecha ? APP5T_Utils.formatFecha(a.fecha) + ' ' + new Date(a.fecha).toLocaleTimeString() : '—'}</td>
-      <td>${a.usuario || '—'}</td>
-      <td>${a.rol || '—'}</td>
-      <td>${a.tabla || '—'}</td>
+      <td>${a.fecha ? APP5T_Utils.formatFecha(a.fecha) + ' ' + new Date(a.fecha).toLocaleTimeString() : '-'}</td>
+      <td>${a.usuario || '-'}</td>
+      <td>${a.rol || '-'}</td>
+      <td>${a.tabla || '-'}</td>
       <td class="text-truncate" title="${(a.detalle || '').replace(/"/g, '&quot;')}">${(a.detalle || '').substring(0, 80)}</td>
     </tr>`).join('');
   }
@@ -2421,8 +2387,8 @@ function _renderInventario() {
       );
       const neg = negs && negs.length ? negs[0] : null;
       const proy = p.id_proyecto ? APP5T_DB.getById('proyectos', p.id_proyecto) : null;
-      const proyNom = proy ? (proy.nombre_proyecto || proy.nombre || '—') : '—';
-      const fecha = neg ? neg.fecha_negociacion : '—';
+      const proyNom = proy ? (proy.nombre_proyecto || proy.nombre || '-') : '-';
+      const fecha = neg ? neg.fecha_negociacion : '-';
       const esVD = neg && neg.id_proceso === 'Venta_Directa';
       const tipoBadge = esVD
         ? `<span class="tag tag-venta-directa" style="font-size:0.72rem;"><i class="fa-solid fa-bolt"></i> Venta Directa</span>`
@@ -2691,7 +2657,7 @@ function _renderInventario() {
 
       // Resolve project
       const proy = p.id_proyecto ? proyectos.find(pr => pr.id === p.id_proyecto) : null;
-      const proyNom = proy ? (proy.nombre_proyecto || proy.nombre) : '—';
+      const proyNom = proy ? (proy.nombre_proyecto || proy.nombre) : '-';
       const proyId = p.id_proyecto;
 
       // Resolve operation date
@@ -2792,16 +2758,16 @@ function _renderInventario() {
       const pendienteStr = APP5T_Utils.formatMoneda(item.totalPorRecibir);
       
       return `<tr>
-        <td>${item.fechaOperacion || '—'}</td>
+        <td>${item.fechaOperacion || '-'}</td>
         <td><strong>${p.nombre}</strong><br><small style="color:var(--text-dim);">${item.proyectoNombre}</small></td>
-        <td>${item.clienteNombreCompleto || '—'}<br><small style="color:var(--text-dim);">${item.clienteRut || '—'}</small></td>
+        <td>${item.clienteNombreCompleto || '-'}<br><small style="color:var(--text-dim);">${item.clienteRut || '-'}</small></td>
         <td>${valorVentaStr}</td>
         <td>${pieStr}</td>
         <td>${pagadasStr}</td>
         <td>${pendientesStr}</td>
         <td style="font-weight: 700; color: var(--accent-green, #2ecc71);">${recibidoStr}</td>
         <td style="font-weight: 700; color: var(--accent-orange, #f39c12);">${pendienteStr}</td>
-        <td>${getStatusBadgeHTML(p.estado)}</td>
+        <td data-label="Estado">${getStatusBadgeHTML(p.estado)}</td>
       </tr>`;
     }).join('');
   }
@@ -2863,11 +2829,11 @@ function _renderInventario() {
       const cliRut = cli ? cli.rut : '';
       
       const proy = p.id_proyecto ? proyectos.find(pr => pr.id === p.id_proyecto) : null;
-      const proyNom = proy ? (proy.nombre_proyecto || proy.nombre) : '—';
+      const proyNom = proy ? (proy.nombre_proyecto || proy.nombre) : '-';
       
       const vendedores = APP5T_DB.getAll('vendedores') || [];
       const vend = vendedores.find(v => String(v.id) === String(neg.id_vendedor));
-      const vendNom = vend ? (vend.nombres || vend.nombre) : '—';
+      const vendNom = vend ? (vend.nombres || vend.nombre) : '-';
       
       // Apply filters
       const combinedCli = `${cliRut} | ${cliNom}`.toLowerCase();
@@ -2934,9 +2900,9 @@ function _renderInventario() {
         
         cuotasRows += `<tr>
           <td>${ct.cuota_nro || (index + 1)}</td>
-          <td>${ct.fecha_vencimiento || '—'}</td>
+          <td>${ct.fecha_vencimiento || '-'}</td>
           <td>${APP5T_Utils.formatMoneda(ct.valor_cuota || 0)}</td>
-          <td>${ct.fecha_pago || '—'}</td>
+          <td>${ct.fecha_pago || '-'}</td>
           <td>${APP5T_Utils.formatMoneda(ct.valor_pagado || 0)}</td>
           <td>${estadoBadge}</td>
         </tr>`;
@@ -2959,10 +2925,10 @@ function _renderInventario() {
           </div>
           
           <div class="statement-header-grid">
-            <div class="statement-header-item"><strong>Rut / Identificación:</strong> ${cliRut || '—'}</div>
-            <div class="statement-header-item"><strong>Nombre del Cliente:</strong> ${cliNom || '—'}</div>
-            <div class="statement-header-item"><strong>Rol propiedad:</strong> ${p.rol_propiedad || '—'}</div>
-            <div class="statement-header-item"><strong>Nombre propiedad:</strong> ${p.nombre || '—'} (${proyNom})</div>
+            <div class="statement-header-item"><strong>Rut / Identificación:</strong> ${cliRut || '-'}</div>
+            <div class="statement-header-item"><strong>Nombre del Cliente:</strong> ${cliNom || '-'}</div>
+            <div class="statement-header-item"><strong>Rol propiedad:</strong> ${p.rol_propiedad || '-'}</div>
+            <div class="statement-header-item"><strong>Nombre propiedad:</strong> ${p.nombre || '-'} (${proyNom})</div>
             <div class="statement-header-item"><strong>Nombre vendedor:</strong> ${vendNom}</div>
           </div>
           
@@ -3091,7 +3057,7 @@ function _renderInventario() {
       
       summaryByVendedor[idVendedor].ventas.push({
         lote: p.nombre_lote || p.nombre || `Lote ${p.id}`,
-        proyecto: proy ? proy.nombre_proyecto || proy.nombre : '—',
+        proyecto: proy ? proy.nombre_proyecto || proy.nombre : '-',
         cliente: cli ? `${cli.nombres} ${cli.apellidos}` : 'Desconocido',
         rut: cli ? cli.rut : '',
         fecha: fechaOp,
@@ -3113,15 +3079,34 @@ function _renderInventario() {
       let detalleHtml = '';
       
       rows.forEach(r => {
-        let ventasHtml = r.ventas.map(v => `
+        r.ventas.sort((a, b) => {
+          const pA = parseDdMmYyyy(a.fecha);
+          const pB = parseDdMmYyyy(b.fecha);
+          if (!pA) return 1;
+          if (!pB) return -1;
+          const dA = new Date(pA.year, pA.month - 1, pA.day);
+          const dB = new Date(pB.year, pB.month - 1, pB.day);
+          return dA - dB;
+        });
+
+        let ventasHtml = r.ventas.map(v => {
+          let fmtDate = v.fecha || '-';
+          const pd = parseDdMmYyyy(v.fecha);
+          if (pd) {
+            const yy = String(pd.year).slice(-2);
+            const mm = String(pd.month).padStart(2, '0');
+            const dd = String(pd.day).padStart(2, '0');
+            fmtDate = `${dd}/${mm}/${yy}`;
+          }
+          return `
           <tr>
             <td>${v.lote} <span style="font-size:0.8rem; color:var(--text-dim);">(${v.proyecto})</span></td>
             <td>${v.cliente}</td>
-            <td>${v.fecha}</td>
+            <td>${fmtDate}</td>
             <td>${v.estado.replace('_', ' ')}</td>
             <td>${APP5T_Utils.formatMoneda(v.monto)}</td>
           </tr>
-        `).join('');
+        `}).join('');
 
         detalleHtml += `
           <div class="statement-card">
@@ -3204,7 +3189,7 @@ function _renderInventario() {
       const cliRut = cli ? cli.rut : '';
       
       const proy = p.id_proyecto ? proyectos.find(pr => pr.id === p.id_proyecto) : null;
-      const proyNom = proy ? (proy.nombre_proyecto || proy.nombre) : '—';
+      const proyNom = proy ? (proy.nombre_proyecto || proy.nombre) : '-';
       
       if (searchFilter && !cliNom.toLowerCase().includes(searchFilter) && !cliRut.toLowerCase().includes(searchFilter) && !(p.nombre || '').toLowerCase().includes(searchFilter)) return;
       
@@ -3634,7 +3619,7 @@ function _renderInventario() {
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Reporte de Operaciones — ${mesNom} / ${anioNom}</title>
+        <title>Reporte de Operaciones - ${mesNom} / ${anioNom}</title>
         <meta charset="utf-8">
         <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
         <style>
@@ -3861,11 +3846,11 @@ function _renderInventario() {
               
               return `
                 <tr>
-                  <td>${item.fechaOperacion || '—'}</td>
+                  <td>${item.fechaOperacion || '-'}</td>
                   <td><strong>${p.nombre || ''}</strong></td>
                   <td>${item.proyectoNombre || ''}</td>
-                  <td>${item.clienteNombreCompleto || '—'}</td>
-                  <td>${item.clienteRut || '—'}</td>
+                  <td>${item.clienteNombreCompleto || '-'}</td>
+                  <td>${item.clienteRut || '-'}</td>
                   <td class="amount">${APP5T_Utils.formatMoneda(item.valorVenta)}</td>
                   <td class="amount">${APP5T_Utils.formatMoneda(item.pie)}</td>
                   <td class="amount">${APP5T_Utils.formatMoneda(item.montoCuotasPagadas)}</td>
@@ -3913,7 +3898,7 @@ function _renderInventario() {
     const prop = APP5T_DB.getById('propiedades', idProp);
     if (!prop) return;
     
-    const negs = APP5T_DB.query('negociaciones', n => String(n.id_propiedad) === String(prop.id) && n.estado_avance === 'En Curso');
+    const negs = APP5T_DB.query('negociaciones', n => n && String(n.id_propiedad) === String(prop.id) && n.estado_avance === 'En Curso');
     const neg = negs && negs.length ? negs[0] : null;
     if (!neg) {
       APP5T_Utils.showToast('No se encontró negociación activa para este lote.', 'error');
@@ -3983,7 +3968,7 @@ function _renderInventario() {
         return;
       }
       const msgOk = (res && res.tipo === 'Venta_Directa')
-        ? 'Venta Directa aprobada — pendiente escriturar ⚡'
+        ? 'Venta Directa aprobada - pendiente escriturar ⚡'
         : 'Reserva aprobada exitosamente';
       APP5T_Utils.showToast(msgOk, 'success');
       refreshAll();
@@ -4001,7 +3986,7 @@ function _renderInventario() {
     const prop = APP5T_DB.getById('propiedades', idProp);
     if (!prop) return;
 
-    const negs = APP5T_DB.query('negociaciones', n => String(n.id_propiedad) === String(prop.id) && (n.estado_avance === 'En Curso' || n.estado_avance === 'Aprobado'));
+    const negs = APP5T_DB.query('negociaciones', n => n && String(n.id_propiedad) === String(prop.id) && (n.estado_avance === 'En Curso' || n.estado_avance === 'Aprobado'));
     const neg = negs && negs.length ? negs[0] : null;
     if (!neg) {
       APP5T_Utils.showToast('No se encontró negociación activa para este lote.', 'error');
@@ -4058,7 +4043,7 @@ function _renderInventario() {
           </div>
           <div class="form-group">
             <label style="font-size:0.8rem; font-weight:600; color:var(--text-muted); text-transform:uppercase;">Cantidad de Cuotas *</label>
-            <input type="number" id="prom-cuotas" class="form-control" value="12" min="1">
+            <input type="number" id="prom-cuotas" class="form-control" value="${neg.cantidad_cuotas || ''}" min="1">
           </div>
           <div class="form-group">
             <label style="font-size:0.8rem; font-weight:600; color:var(--text-muted); text-transform:uppercase;">Vencimiento Primera Cuota *</label>
@@ -4128,14 +4113,14 @@ function _renderInventario() {
   function _signEscrituraDirecta(idProp) {
     const prop = APP5T_DB.getById('propiedades', idProp);
     if (!prop) return;
-    const neg = (APP5T_DB.query('negociaciones', n => String(n.id_propiedad) === String(prop.id) && n.id_proceso === 'Venta_Directa') || [])[0];
+    const neg = (APP5T_DB.query('negociaciones', n => n && String(n.id_propiedad) === String(prop.id) && n.id_proceso === 'Venta_Directa') || [])[0];
     if (!neg) { APP5T_Utils.showToast('No se encontró negociación de Venta Directa para este lote.', 'error'); return; }
     const cli = APP5T_DB.getById('clientes', neg.id_cliente);
     const cliNom = cli ? `${cli.nombres} ${cli.apellidos}` : 'Sin Cliente';
     const valorFmt = APP5T_Utils.formatMoneda(neg.valor_final || 0);
     const hoy = APP5T_Utils.fechaHoy();
 
-    openModal('Registrar Escrituración — Venta Directa', `
+    openModal('Registrar Escrituración - Venta Directa', `
       <div style="padding:4px;">
         <div style="background:rgba(139,92,246,.1);border:1px solid rgba(139,92,246,.3);border-radius:8px;padding:12px 16px;margin-bottom:16px;">
           <p style="margin:0 0 4px;font-size:0.82rem;color:var(--text-dim);">Lote / Proyecto</p>
@@ -5180,8 +5165,8 @@ function _renderInventario() {
 
     const cliNombre = cli ? `${cli.nombres} dots ${cli.apellidos}`.replace('\\dots', '').trim() || 'Sin Nombre' : 'Sin Nombre';
     const cliNombreFull = cli ? `${cli.nombres} ${cli.apellidos}` : 'Sin Nombre';
-    const loteNom = prop ? prop.nombre : '—';
-    const proyNom = proy ? proy.nombre_proyecto : '—';
+    const loteNom = prop ? prop.nombre : '-';
+    const proyNom = proy ? proy.nombre_proyecto : '-';
     const pieFmt = APP5T_Utils.formatMoneda(neg.pie || 0);
 
     // Build modal body HTML
@@ -5207,6 +5192,12 @@ function _renderInventario() {
             <i class="fa-brands fa-whatsapp" style="font-size: 1.5rem;"></i>
             <div>
               <strong style="display: block; font-size: 0.95rem;">2. Enviar por WhatsApp</strong>
+              <span style="font-size: 0.75rem; opacity: 0.85;">Envía el comprobante directamente al cliente por WhatsApp</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="font-size: 0.8rem; color: var(--text-dim); line-height: 1.4; border-top: 1px solid #eee; padding-top: 15px;">
           <strong>Efectos Administrativos (Google Drive):</strong> Una vez descargado el archivo PDF, puedes subirlo ordenadamente a tu Google Drive corporativo y registrar el enlace compartido en la pestaña <strong>"Documentos"</strong> para mantener el expediente digital del lote al día.
         </div>
       </div>
@@ -5223,8 +5214,8 @@ function _renderInventario() {
     const proy = prop ? APP5T_DB.getById('proyectos', prop.id_proyecto) : null;
 
     const cliNombre = cli ? `${cli.nombres} ${cli.apellidos}` : 'Sin Nombre';
-    const loteNom = prop ? prop.nombre : '—';
-    const proyNom = proy ? proy.nombre_proyecto : '—';
+    const loteNom = prop ? prop.nombre : '-';
+    const proyNom = proy ? proy.nombre_proyecto : '-';
     const precioVentaFmt = APP5T_Utils.formatMoneda(neg.valor_final || 0);
     const fechaHoy = new Date().toLocaleDateString('es-CL');
 
@@ -5278,7 +5269,7 @@ function _renderInventario() {
     const proyNom = proy ? proy.nombre_proyecto : '???';
     const activeUserNom = window.APP5T && window.APP5T.getActiveUser ? window.APP5T.getActiveUser() : 'Vendedor';
     
-    const text = `🔔 *NUEVA SOLICITUD DE RESERVA*\n\nHola, el vendedor *${activeUserNom}* ha ingresado una nueva solicitud de reserva para el lote *${loteNom}* del proyecto *${proyNom}*.\n\nPor favor revisa el sistema para aprobarla.`;
+    const text = `⏳ *RESERVA: Lote ${loteNom} - ${proyNom}*\nSolicitada por: ${activeUserNom}.\nRevisar en sistema.`;
     const tel = '56974300363';
     const url = `https://wa.me/${tel}?text=${encodeURIComponent(text)}`;
     
@@ -5314,9 +5305,9 @@ function _renderInventario() {
       const cli = APP5T_DB.getById('clientes', neg.id_cliente);
       const proy = prop ? APP5T_DB.getById('proyectos', prop.id_proyecto) : null;
       
-      const loteNom = prop ? prop.nombre : '—';
-      const proyNom = proy ? proy.nombre_proyecto : '—';
-      const cliNom = cli ? `${cli.nombres} ${cli.apellidos}` : '—';
+      const loteNom = prop ? prop.nombre : '-';
+      const proyNom = proy ? proy.nombre_proyecto : '-';
+      const cliNom = cli ? `${cli.nombres} ${cli.apellidos}` : '-';
       
       const text = `⚖️ *Solicitud de Autorización de Escritura*\n\nHola. Te informo que el *Lote ${loteNom}* del proyecto *${proyNom}* ha finalizado el pago de su cuenta corriente al 100%.\n\nLa Ficha Legal para la confección de la escritura de venta a nombre de *${cliNom}* ya fue generada y descargada.\n\nPor favor, revisa y aprueba la solicitud en tu panel de aprobaciones para habilitar la firma de la escritura en notaría.`;
       const tel = '56974300363'; // El gerente
@@ -5354,8 +5345,8 @@ function _renderInventario() {
 
     const cliNombre = cli ? `${cli.nombres} ${cli.apellidos}` : 'Cliente';
     const fono = cli ? String(cli.telefono || '').replace(/[\s+-]/g, '') : '';
-    const loteNom = prop ? prop.nombre : '—';
-    const proyNom = proy ? proy.nombre_proyecto : '—';
+    const loteNom = prop ? prop.nombre : '-';
+    const proyNom = proy ? proy.nombre_proyecto : '-';
     const pieFmt = APP5T_Utils.formatMoneda(neg.pie || 0);
 
     const text = `Hola ${cliNombre}, te adjunto el comprobante oficial de reserva del lote ${loteNom} del proyecto ${proyNom} por el monto de ${pieFmt}. Saludos, Inmobiliaria 5 Tierras.`;
@@ -5372,8 +5363,8 @@ function _renderInventario() {
 
     const cliNombre = cli ? `${cli.nombres} ${cli.apellidos}` : 'Cliente';
     const email = cli ? (cli.email || '') : '';
-    const loteNom = prop ? prop.nombre : '—';
-    const proyNom = proy ? proy.nombre_proyecto : '—';
+    const loteNom = prop ? prop.nombre : '-';
+    const proyNom = proy ? proy.nombre_proyecto : '-';
     const pieFmt = APP5T_Utils.formatMoneda(neg.pie || 0);
 
     const subject = `Comprobante de Reserva - Lote ${loteNom} - Proyecto ${proyNom}`;
@@ -5474,7 +5465,7 @@ function _renderInventario() {
           APP5T_DB.insert('documentos', { id_propiedad: String(id_propiedad), tipo_documento: tipo_documento, estado: 'Verificado', fecha_carga: new Date().toISOString() });
         }
       } else {
-        if (docIndex !== -1) { docs.splice(docIndex, 1); APP5T_DB.save('documentos', docs); }
+        if (docIndex !== -1) { APP5T_DB.remove('documentos', docs[docIndex].id); }
       }
       _renderCatalogoDocumentos();
       if (typeof APP5T_Cloud !== 'undefined') APP5T_Cloud.syncAll().catch(()=>{});
@@ -5483,15 +5474,12 @@ function _renderInventario() {
       const input = document.getElementById('drive-link-' + id_propiedad);
       if (!input) return;
       const link = input.value.trim();
-      let docs = APP5T_DB.getAll('documentos') || [];
-      let docIndex = docs.findIndex(d => String(d.id_propiedad) === String(id_propiedad) && d.tipo_documento === 'Carpeta');
-      if (link === '') {
-        if (docIndex !== -1) { docs.splice(docIndex, 1); APP5T_DB.save('documentos', docs); }
+      const result = APP5T_DB.update('propiedades', parseInt(id_propiedad, 10), { url: link });
+      if (result && result.success) {
+        APP5T_Utils.showToast('Enlace de Drive guardado correctamente', 'success');
       } else {
-        if (docIndex !== -1) { docs[docIndex].url_drive = link; APP5T_DB.save('documentos', docs); }
-        else { APP5T_DB.insert('documentos', { id_propiedad: String(id_propiedad), tipo_documento: 'Carpeta', url_drive: link, fecha_carga: new Date().toISOString() }); }
+        APP5T_Utils.showToast('Error al guardar el enlace', 'error');
       }
-      if (typeof APP5T_Utils !== 'undefined') APP5T_Utils.showToast('Enlace de Drive guardado correctamente', 'success');
       _renderCatalogoDocumentos();
       if (typeof APP5T_Cloud !== 'undefined') APP5T_Cloud.syncAll().catch(()=>{});
     }
@@ -5501,3 +5489,7 @@ function _renderInventario() {
   window.APP5T = Object.assign(window.APP5T || {}, api);
 
 })();
+
+
+
+

@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <!--  —  —  —  —  —  —  —  —  —  —  —  —  —  —  —  —  —  —  —  —  —  —  —  —  —  —  —  —  —  —  —  —  —  —  —  —  —  —  —  —  —  —  —  —  —  —  —  —  —  —  —  —  —  —  —  —  — 
-       5 TIERRAS  —  CRM & GIS Unificado
+  <!--  —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   — 
+       5 TIERRAS  —   CRM & GIS Unificado
        SPA Shell · v1.0.0
         —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —  -->
   <meta charset="UTF-8">
@@ -11,8 +11,6 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="description" content="5 Tierras  —   CRM & GIS Unificado para gestión inmobiliaria de parcelas">
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-  <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
 
   <title>5 TIERRAS  —   CRM &amp; GIS Unificado</title>
@@ -34,7 +32,7 @@
 
 
   <!-- App Design System -->
-  <link rel="stylesheet" href="index.css?v=1783032579000">
+  <link rel="stylesheet" href="index.css?v=20260720_30">
   <!-- Tailwind CSS CDN for Login and Settings Panel -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -142,7 +140,10 @@
       </nav>
 
       <!-- Footer: Copyright -->
-      <div class="sidebar-footer">
+      <div class="sidebar-footer" style="display: flex; flex-direction: column; align-items: center; gap: 10px;">
+        <button id="theme-toggle" style="background: var(--glass-border); border: 1px solid var(--glass-border2); color: var(--text-light); padding: 8px 16px; border-radius: var(--radius-sm); cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: 500; font-size: 0.85rem; transition: var(--transition-fast);">
+          <i class="fa-solid fa-moon"></i> Modo Oscuro
+        </button>
         <p class="footer-text">5 Tierras &copy; 2026</p>
       </div>
     </aside>
@@ -468,7 +469,7 @@
         <div class="tab-panel" id="panel-aprobaciones">
           <div class="data-card">
             <h3 class="card-title">Cola de Aprobaciones</h3>
-            <p class="card-subtitle">Reservas pendientes de revisión gerencial</p>
+
             <div id="list-aprobaciones" style="display:flex; flex-direction:column; gap:16px;">
               <!-- Cards injected by JS -->
             </div>
@@ -480,20 +481,10 @@
               —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —   —  -->
         <div class="tab-panel" id="panel-precios">
           <div class="data-card">
-            <div class="card-header-flex">
+            <div class="card-header-flex" style="margin-bottom: 20px;">
               <div>
                 <h3 class="card-title">Control de Precios</h3>
                 <p class="card-subtitle">Precios de lista y márgenes por lote</p>
-              </div>
-              <div class="control-group">
-                <label>Proyecto</label>
-                <select id="precios-filter-project" class="control-select">
-                  <option value="all">Todos</option>
-                  <option value="El Copihue">El Copihue</option>
-                  <option value="Las Brisas">Las Brisas</option>
-                  <option value="Los Encinos">Los Encinos</option>
-                  <option value="Los Naranjos">Los Naranjos</option>
-                </select>
               </div>
             </div>
             <div class="table-responsive">
@@ -503,7 +494,7 @@
                     <th>Lote</th>
                     <th>Proyecto</th>
                     <th>Superficie</th>
-                    <th>Precio Lista</th>
+                    <th>Precio de Venta</th>
                     <th>Estado</th>
                   </tr>
                 </thead>
@@ -528,6 +519,7 @@
                 <table class="premium-table">
                   <thead>
                     <tr>
+                      <th>Fecha</th>
                       <th>Lote / Proyecto</th>
                       <th>Tipo</th>
                       <th>Cliente</th>
@@ -551,6 +543,7 @@
                 <table class="premium-table">
                   <thead>
                     <tr>
+                      <th>Fecha</th>
                       <th>Lote / Proyecto</th>
                       <th>Tipo</th>
                       <th>Cliente</th>
@@ -574,6 +567,7 @@
                 <table class="premium-table">
                   <thead>
                     <tr>
+                      <th>Fecha</th>
                       <th>Lote / Proyecto</th>
                       <th>Tipo</th>
                       <th>Cliente</th>
@@ -615,15 +609,15 @@
                 <thead>
                   <tr>
                     <th>Lote</th>
-                    <th>Proyecto</th>
+                    <th id="th-catalogo-proyecto">Proyecto</th>
                     <th>Cliente</th>
                     <th>Estado</th>
-                    <th class="text-center">Cédula</th>
-                    <th class="text-center">Comprobante</th>
-                    <th class="text-center">Reserva</th>
-                    <th class="text-center">Promesa</th>
-                    <th class="text-center">Escritura</th>
-                    <th>Enlace Carpeta Drive</th>
+                    <th class="text-center" title="Cédula/RUT" style="font-size:0.6rem; padding: 4px;">RUT</th>
+                    <th class="text-center" title="Comprobante" style="font-size:0.6rem; padding: 4px;">Compro.</th>
+                    <th class="text-center" style="font-size:0.6rem; padding: 4px;">Reser.</th>
+                    <th class="text-center" style="font-size:0.6rem; padding: 4px;">Prome.</th>
+                    <th class="text-center" style="font-size:0.6rem; padding: 4px;">Escri.</th>
+                    <th style="min-width: 120px; font-size:0.65rem;">Enlace Drive</th>
                     <th>Progreso</th>
                   </tr>
                 </thead>
@@ -1154,21 +1148,21 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
   <!-- GeoJSON Layers (spatial data only) -->
-  <script src="../03_CORAZON/layers/copihue_master.js?v=20260718_02"></script>
-  <script src="../03_CORAZON/layers/brisas_master.js?v=20260718_02"></script>
-  <script src="../03_CORAZON/layers/encinos_master.js?v=20260718_02"></script>
-  <script src="../03_CORAZON/layers/naranjos_master.js?v=20260718_02"></script>
+  <script src="../03_CORAZON/layers/brisas_master.js?v=20260720_04"></script>
+  <script src="../03_CORAZON/layers/copihue_master.js?v=20260720_04"></script>
+  <script src="../03_CORAZON/layers/encinos_master.js?v=20260720_04"></script>
+  <script src="../03_CORAZON/layers/naranjos_master.js?v=20260720_01"></script>
 
   <!-- App Modules -->
-  <script src="js/utils.js?v=20260718_02"></script>
-  <script src="js/db.js?v=20260718_02"></script>
-  <script src="js/sync.js?v=20260718_02"></script>
-  <script src="js/map.js?v=20260718_02"></script>
-  <script src="js/charts.js?v=20260718_02"></script>
-  <script src="js/forms.js?v=20260718_02"></script>
-  <script src="js/app.js?v=20260718_02"></script>
+  <script src="js/utils.js?v=20260720_19"></script>
+  <script src="js/db.js?v=1784658674339"></script>
+  <script src="js/sync.js?v=20260722_08"></script>
+  <script src="js/map.js?v=1784673426570"></script>
+  <script src="js/charts.js?v=20260720_19"></script>
+  <script src="js/forms.js?v=20260722_06"></script>
+  <script src="js/app.js?v=20260722_09"></script>
   <script>
-    const APP5T_CONFIG = {
+    window.APP5T_CONFIG = {
       SUPABASE_URL: 'https://imihpdvscotqbyqylgpq.supabase.co/rest/v1/',
       SUPABASE_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImltaWhwZHZzY290cWJ5cXlsZ3BxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3ODIxMTgsImV4cCI6MjA5NzM1ODExOH0.1DVMjeEjrrqlQh9WMfxYAvI5ef9ebuxHvAX_6O7knZM'
     };
@@ -1204,5 +1198,32 @@
     </div>
   </div>
 
+  <script>
+    // Theme logic
+    document.addEventListener('DOMContentLoaded', () => {
+      const themeToggle = document.getElementById('theme-toggle');
+      if (!themeToggle) return;
+      
+      const currentTheme = localStorage.getItem('app5t_theme');
+      if (currentTheme === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        themeToggle.innerHTML = '<i class="fa-solid fa-sun"></i> Modo Claro';
+      }
+
+      themeToggle.addEventListener('click', () => {
+        let theme = document.documentElement.getAttribute('data-theme');
+        if (theme === 'dark') {
+          document.documentElement.removeAttribute('data-theme');
+          localStorage.setItem('app5t_theme', 'light');
+          themeToggle.innerHTML = '<i class="fa-solid fa-moon"></i> Modo Oscuro';
+        } else {
+          document.documentElement.setAttribute('data-theme', 'dark');
+          localStorage.setItem('app5t_theme', 'dark');
+          themeToggle.innerHTML = '<i class="fa-solid fa-sun"></i> Modo Claro';
+        }
+      });
+    });
+  </script>
   </body>
 </html>
+
